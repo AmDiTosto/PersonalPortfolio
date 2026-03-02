@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Fixedsys Excelsior";
+  src: url("./assets/fonts/FixedsysExcelsior.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-fixedsys: "Fixedsys Excelsior", monospace;
+}
