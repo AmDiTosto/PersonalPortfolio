@@ -4,112 +4,247 @@ import computerIcon from "./assets/computer_explorer-5.png";
 import folderIcon from "./assets/directory_open_file_mydocs-4.png";
 import emailIcon from "./assets/outlook_express-4.png";
 import documentIcon from "./assets/document-0.png";
-
-const desktopItems = [
-  {
-    id: "about",
-    title: "My Computer",
-    icon: <img src={computerIcon} className="" alt="About Me" />,
-    content: (
-      <div className="space-y-3">
-        <h2 className="text-2xl font-bold text-[#2d5f9c]">About Me</h2>
-        <p>
-          Hi, I’m Adrian. I’m a computer science student interested in software
-          development, manufacturing systems, and building practical tools that
-          solve real problems.
-        </p>
-        <p>
-          I enjoy working with full-stack applications, industrial software, and
-          creative web experiences.
-        </p>
-      </div>
-    ),
-  },
-  {
-    id: "experience",
-    title: "Experience",
-    icon: <img src={folderIcon} alt="Experince" />,
-    content: (
-      <div className="space-y-3">
-        <h2 className="text-2xl font-bold text-[#2d5f9c]">Experience</h2>
-        <p>
-          Add your internships, co-op roles, leadership experience, and major
-          accomplishments here.
-        </p>
-        <div className="rounded-xl border border-[#95c6ec] bg-[#f2fbff] p-4">
-          <p className="font-semibold text-[#2d5f9c]">Example ideas</p>
-          <ul className="mt-2 list-disc pl-5 space-y-1">
-            <li>Co-op / internship experience</li>
-            <li>Software development work</li>
-            <li>Leadership roles</li>
-            <li>Hackathons and student involvement</li>
-          </ul>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: "projects",
-    title: "Projects",
-    icon: <img src={folderIcon} alt="Projects" />,
-    content: (
-      <div className="space-y-3">
-        <h2 className="text-2xl font-bold text-[#2d5f9c]">Projects</h2>
-        <ul className="list-disc pl-5 space-y-2">
-          <li>Factory analytics and manufacturing software tools</li>
-          <li>React-based web applications and dashboards</li>
-          <li>NLP and skill extraction research work</li>
-          <li>Personal software and UI experiments</li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    id: "resume",
-    title: "Resume.pdf",
-    icon: <img src={documentIcon} alt="Resume" />,
-    content: (
-      <div className="space-y-3">
-        <h2 className="text-2xl font-bold text-[#2d5f9c]">Resume</h2>
-        <p>
-          You can replace this section with your actual resume preview, embedded
-          PDF, or a download button later.
-        </p>
-        <div className="rounded-xl border border-[#a8d08d] bg-[#f5fff0] p-4">
-          <p className="font-semibold text-[#46743d]">Coming soon</p>
-          <p className="text-sm text-[#567b50]">
-            Add your education, experience, projects, and technical skills here.
-          </p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: "contact",
-    title: "Contact.exe",
-    icon: <img src={emailIcon} alt="Contact" />,
-    content: (
-      <div className="space-y-3">
-        <h2 className="text-2xl font-bold text-[#2d5f9c]">Contact</h2>
-        <div className="space-y-2">
-          <p>Email: your-email@example.com</p>
-          <p>LinkedIn: linkedin.com/in/your-name</p>
-          <p>GitHub: github.com/your-name</p>
-        </div>
-      </div>
-    ),
-  },
-];
-
-const WINDOW_WIDTH = 560;
-const WINDOW_HEIGHT = 360;
+import xIcon from "./assets/msg_error-0.png";
+import windoesIcon from "./assets/windows-0.png";
 
 function App() {
+  const [viewport, setViewport] = useState(() =>
+    typeof window === "undefined"
+      ? { width: 1440, height: 900 }
+      : getViewportSize()
+  );
+
   const [openWindows, setOpenWindows] = useState([]);
   const [dragging, setDragging] = useState(null);
 
   const zCounter = useRef(10);
   const openOffset = useRef(0);
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  const TASKBAR_HEIGHT = 56;
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function getViewportSize() {
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  }
+
+  function getTopSafeArea(viewportWidth) {
+    // On small screens the icons move to the top,
+    // so windows should open a bit lower.
+    return viewportWidth < 640 ? 100 : 12;
+  }
+
+  function getResponsiveWindowSize(viewportWidth, viewportHeight) {
+    const maxAllowedWidth = Math.max(220, viewportWidth - 24);
+    const maxAllowedHeight = Math.max(
+      200,
+      viewportHeight - TASKBAR_HEIGHT - 24
+    );
+
+    let targetWidth = 560;
+    let targetHeight = 360;
+
+    if (viewportWidth < 640) {
+      targetWidth = viewportWidth - 24;
+      targetHeight = viewportHeight - TASKBAR_HEIGHT - 120;
+    } else if (viewportWidth < 1024) {
+      targetWidth = Math.min(500, viewportWidth - 56);
+      targetHeight = Math.min(340, viewportHeight - TASKBAR_HEIGHT - 36);
+    }
+
+    return {
+      width: clamp(targetWidth, 220, maxAllowedWidth),
+      height: clamp(targetHeight, 200, maxAllowedHeight),
+    };
+  }
+
+  function clampWindowPosition(
+    x,
+    y,
+    width,
+    height,
+    viewportWidth,
+    viewportHeight
+  ) {
+    const minX = 12;
+    const minY = getTopSafeArea(viewportWidth);
+
+    const maxX = Math.max(minX, viewportWidth - width - 12);
+    const maxY = Math.max(minY, viewportHeight - TASKBAR_HEIGHT - height - 12);
+
+    return {
+      x: clamp(x, minX, maxX),
+      y: clamp(y, minY, maxY),
+    };
+  }
+
+  const desktopItems = [
+    {
+      id: "about",
+      title: "My Computer",
+      icon: (
+        <img
+          src={computerIcon}
+          className="h-12 w-12 object-contain"
+          alt="About Me"
+          draggable="false"
+        />
+      ),
+      content: (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
+            About Me
+          </h2>
+          <p>
+            Hi, I’m Adrian. I’m a computer science student interested in
+            software development, manufacturing systems, and building practical
+            tools that solve real problems.
+          </p>
+          <p>
+            I enjoy working with full-stack applications, industrial software,
+            and creative web experiences.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "experience",
+      title: "Experience",
+      icon: (
+        <img
+          src={folderIcon}
+          alt="Experience"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      content: (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
+            Experience
+          </h2>
+          <p>
+            Add your internships, co-op roles, leadership experience, and major
+            accomplishments here.
+          </p>
+          <div className="rounded-xl border border-[#95c6ec] bg-[#f2fbff] p-4">
+            <p className="font-semibold text-[#2d5f9c]">Example ideas</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Co-op / internship experience</li>
+              <li>Software development work</li>
+              <li>Leadership roles</li>
+              <li>Hackathons and student involvement</li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "projects",
+      title: "Projects",
+      icon: (
+        <img
+          src={folderIcon}
+          alt="Projects"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      content: (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
+            Projects
+          </h2>
+          <ul className="list-disc space-y-2 pl-5">
+            <li>Factory analytics and manufacturing software tools</li>
+            <li>React-based web applications and dashboards</li>
+            <li>NLP and skill extraction research work</li>
+            <li>Personal software and UI experiments</li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: "resume",
+      title: "Resume.pdf",
+      icon: (
+        <img
+          src={documentIcon}
+          alt="Resume"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      content: (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
+            Resume
+          </h2>
+          <p>
+            You can replace this section with your actual resume preview,
+            embedded PDF, or a download button later.
+          </p>
+          <div className="rounded-xl border border-[#a8d08d] bg-[#f5fff0] p-4">
+            <p className="font-semibold text-[#46743d]">Coming soon</p>
+            <p className="text-sm text-[#567b50]">
+              Add your education, experience, projects, and technical skills
+              here.
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "contact",
+      title: "Contact.exe",
+      icon: (
+        <img
+          src={emailIcon}
+          alt="Contact"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      content: (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
+            Contact
+          </h2>
+          <div className="space-y-2">
+            <p>Email: your-email@example.com</p>
+            <p>LinkedIn: linkedin.com/in/your-name</p>
+            <p>GitHub: github.com/your-name</p>
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  function formatWindowsTime(date) {
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const suffix = hours >= 12 ? "PM" : "AM";
+
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+
+    return `${hours}:${minutes} ${suffix}`;
+  }
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   function getNextZ() {
     zCounter.current += 1;
@@ -127,6 +262,9 @@ function App() {
   }
 
   function openDesktopItem(item) {
+    const size = getResponsiveWindowSize(viewport.width, viewport.height);
+    const isSmallScreen = viewport.width < 640;
+
     setOpenWindows((prev) => {
       const existing = prev.find((window) => window.id === item.id);
 
@@ -137,8 +275,17 @@ function App() {
         );
       }
 
-      const offset = openOffset.current * 28;
+      const offset = openOffset.current * (isSmallScreen ? 12 : 28);
       openOffset.current = (openOffset.current + 1) % 6;
+
+      const initialPosition = clampWindowPosition(
+        isSmallScreen ? 12 + offset : 150 + offset,
+        getTopSafeArea(viewport.width) + offset,
+        size.width,
+        size.height,
+        viewport.width,
+        viewport.height
+      );
 
       return [
         ...prev,
@@ -146,8 +293,10 @@ function App() {
           id: item.id,
           title: item.title,
           content: item.content,
-          x: 200 + offset,
-          y: 90 + offset,
+          width: size.width,
+          height: size.height,
+          x: initialPosition.x,
+          y: initialPosition.y,
           z: getNextZ(),
         },
       ];
@@ -174,21 +323,63 @@ function App() {
   }
 
   useEffect(() => {
+    function handleResize() {
+      setViewport(getViewportSize());
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const nextSize = getResponsiveWindowSize(viewport.width, viewport.height);
+
+    setOpenWindows((prev) =>
+      prev.map((window) => {
+        const nextPosition = clampWindowPosition(
+          window.x,
+          window.y,
+          nextSize.width,
+          nextSize.height,
+          viewport.width,
+          viewport.height
+        );
+
+        return {
+          ...window,
+          width: nextSize.width,
+          height: nextSize.height,
+          x: nextPosition.x,
+          y: nextPosition.y,
+        };
+      })
+    );
+  }, [viewport]);
+
+  useEffect(() => {
     function handleMouseMove(e) {
       if (!dragging) return;
 
-      const maxX = window.innerWidth - WINDOW_WIDTH - 20;
-      const maxY = window.innerHeight - WINDOW_HEIGHT - 25;
+      const activeWindow = openWindows.find(
+        (window) => window.id === dragging.id
+      );
 
-      let nextX = e.clientX - dragging.offsetX;
-      let nextY = e.clientY - dragging.offsetY;
+      if (!activeWindow) return;
 
-      nextX = Math.max(12, Math.min(nextX, maxX));
-      nextY = Math.max(12, Math.min(nextY, maxY));
+      const nextPosition = clampWindowPosition(
+        e.clientX - dragging.offsetX,
+        e.clientY - dragging.offsetY,
+        activeWindow.width,
+        activeWindow.height,
+        viewport.width,
+        viewport.height
+      );
 
       setOpenWindows((prev) =>
         prev.map((window) =>
-          window.id === dragging.id ? { ...window, x: nextX, y: nextY } : window
+          window.id === dragging.id
+            ? { ...window, x: nextPosition.x, y: nextPosition.y }
+            : window
         )
       );
     }
@@ -204,7 +395,7 @@ function App() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragging]);
+  }, [dragging, openWindows, viewport]);
 
   return (
     <div
@@ -212,20 +403,23 @@ function App() {
       style={{ backgroundImage: `url(${background})` }}
     >
       <div className="min-h-screen w-full">
-        <div className="relative h-screen w-full select-none p-3">
+        <div className="relative h-screen w-full select-none p-3 sm:p-4">
           {/* Desktop icons */}
-          <div className="flex w-28 flex-col gap-6">
+          <div className="absolute left-3 right-3 top-3 z-10 flex flex-row flex-wrap gap-x-3 gap-y-5 sm:right-auto sm:w-28 sm:flex-col sm:gap-6">
             {desktopItems.map((item) => (
-              <div
-                className="flex justify-center flex-col text-center"
+              <button
                 key={item.id}
+                type="button"
                 onClick={() => openDesktopItem(item)}
+                className="flex w-20 flex-col items-center text-center sm:w-full"
               >
                 <div className="flex w-full justify-center py-2">
                   {item.icon}
                 </div>
-                <span className="font-fixedsys text-white">{item.title}</span>
-              </div>
+                <span className="font-fixedsys text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
+                  {item.title}
+                </span>
+              </button>
             ))}
           </div>
 
@@ -234,23 +428,22 @@ function App() {
             <div
               key={window.id}
               onMouseDown={() => bringToFront(window.id)}
-              className="absolute overflow-hidden rounded-2xl border border-[#b8e1ff] bg-white/85 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-md"
+              className="absolute overflow-hidden"
               style={{
                 left: `${window.x}px`,
                 top: `${window.y}px`,
-                width: `${WINDOW_WIDTH}px`,
-                height: `${WINDOW_HEIGHT}px`,
+                width: `${window.width}px`,
+                height: `${window.height}px`,
                 zIndex: window.z,
               }}
             >
               {/* Window top bar */}
               <div
                 onMouseDown={(e) => startDragging(e, window.id)}
-                className="flex h-12 cursor-move items-center justify-between border-b border-[#c9f0b2] bg-gradient-to-r from-[#2d72d2] via-[#5fa7ef] to-[#9edb7f] px-4 text-white"
+                className="flex h-10 cursor-move items-center justify-between border-b border-[#c9f0b2] bg-[#0000aa] px-3 text-white sm:h-12 sm:px-4"
               >
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-white/80" />
-                  <span className="font-semibold tracking-wide drop-shadow-sm">
+                <div className="flex min-w-0 items-center gap-2 bg-[#0000aa]">
+                  <span className="font-fixedsys text-xl tracking-wide">
                     {window.title}
                   </span>
                 </div>
@@ -258,24 +451,53 @@ function App() {
                 <button
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={() => closeWindow(window.id)}
-                  className="rounded-md border border-white/50 bg-[#e85b5b] px-3 py-1 text-sm font-semibold text-white transition hover:bg-[#d84b4b]"
                 >
-                  X
+                  <img src={xIcon} alt="xIcon" />
                 </button>
               </div>
 
               {/* Window content */}
-              <div className="h-[calc(100%-48px)] overflow-auto bg-gradient-to-br from-[#f5fbff] via-[#f8fdff] to-[#f4fff0] p-5 text-[#24415f]">
+              <div className="h-[calc(100%-40px)] overflow-auto bg-[#c3c7cb] p-3 text-sm text-[#24415f] sm:h-[calc(100%-48px)] sm:p-5 sm:text-base">
                 {window.content}
               </div>
             </div>
           ))}
 
           {/* Bottom taskbar */}
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-14 border-t border-white/30 bg-gray-500 backdrop-blur-sm">
-            <div className="flex h-full items-center px-4 text-white">
-              <div className="rounded-full border border-white/50 bg-[#58b947] px-5 py-1 text-sm font-bold shadow-md">
-                Test
+          {/* Bottom taskbar */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 border-t border-[#dfdfdf] bg-[#c0c0c0] sm:h-14">
+            <div className="flex h-full items-center justify-between px-1.5 sm:px-2">
+              {/* Left side */}
+              <div className="flex min-w-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  className="flex h-8 items-center justify-center gap-2 border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white sm:h-9 sm:px-3"
+                >
+                  <img
+                    src={windoesIcon}
+                    alt="Windows icon"
+                    className="h-6 w-6 shrink-0 object-contain"
+                  />
+                  <span className="font-fixedsys font-bold text-lg">Start</span>
+                </button>
+
+                <div className="flex h-8 items-center justify-center gap-2 border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black sm:h-9 sm:px-3">
+                  <img
+                    src={computerIcon}
+                    alt="Desktop icon"
+                    className="h-6 w-6 shrink-0 object-contain "
+                  />
+                  <span className="font-fixedsys font-bold text-lg">
+                    My Desktop
+                  </span>
+                </div>
+              </div>
+
+              {/* Right side clock */}
+              <div className="flex h-8 items-center border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-[#c0c0c0] px-2 text-black sm:h-9 sm:px-3">
+                <span className="font-fixedsys text-lg font-bold">
+                  {formatWindowsTime(currentTime)}
+                </span>
               </div>
             </div>
           </div>
