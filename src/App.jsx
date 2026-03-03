@@ -6,6 +6,7 @@ import emailIcon from "./assets/outlook_express-4.png";
 import documentIcon from "./assets/document-0.png";
 import xIcon from "./assets/msg_error-0.png";
 import windoesIcon from "./assets/windows-0.png";
+import MyComputerPage from "./components/MyComputer";
 
 function App() {
   const [viewport, setViewport] = useState(() =>
@@ -48,8 +49,8 @@ function App() {
       viewportHeight - TASKBAR_HEIGHT - 24
     );
 
-    let targetWidth = 560;
-    let targetHeight = 360;
+    let targetWidth = 700;
+    let targetHeight = 500;
 
     if (viewportWidth < 640) {
       targetWidth = viewportWidth - 24;
@@ -88,6 +89,7 @@ function App() {
   const desktopItems = [
     {
       id: "about",
+      type: "window",
       title: "My Computer",
       icon: (
         <img
@@ -97,25 +99,11 @@ function App() {
           draggable="false"
         />
       ),
-      content: (
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
-            About Me
-          </h2>
-          <p>
-            Hi, I’m Adrian. I’m a computer science student interested in
-            software development, manufacturing systems, and building practical
-            tools that solve real problems.
-          </p>
-          <p>
-            I enjoy working with full-stack applications, industrial software,
-            and creative web experiences.
-          </p>
-        </div>
-      ),
+      content: <MyComputerPage />,
     },
     {
       id: "experience",
+      type: "window",
       title: "Experience",
       icon: (
         <img
@@ -148,6 +136,7 @@ function App() {
     },
     {
       id: "projects",
+      type: "window",
       title: "Projects",
       icon: (
         <img
@@ -173,6 +162,7 @@ function App() {
     },
     {
       id: "resume",
+      type: "window",
       title: "Resume.pdf",
       icon: (
         <img
@@ -203,6 +193,7 @@ function App() {
     },
     {
       id: "contact",
+      type: "window",
       title: "Contact.exe",
       icon: (
         <img
@@ -224,6 +215,20 @@ function App() {
           </div>
         </div>
       ),
+    },
+    {
+      id: "secret",
+      type: "external-link",
+      title: "Adrian SECRET folder",
+      icon: (
+        <img
+          src={folderIcon}
+          alt="Secret"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     },
   ];
 
@@ -262,7 +267,17 @@ function App() {
   }
 
   function openDesktopItem(item) {
+    if (item.type === "external-link" && item.url) {
+      window.open(item.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (item.type !== "window") return;
+
+    const topSafeArea = getTopSafeArea(viewport.width);
+
     const size = getResponsiveWindowSize(viewport.width, viewport.height);
+
     const isSmallScreen = viewport.width < 640;
 
     setOpenWindows((prev) => {
@@ -280,7 +295,7 @@ function App() {
 
       const initialPosition = clampWindowPosition(
         isSmallScreen ? 12 + offset : 150 + offset,
-        getTopSafeArea(viewport.width) + offset,
+        topSafeArea + offset,
         size.width,
         size.height,
         viewport.width,
@@ -451,6 +466,7 @@ function App() {
                 <button
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={() => closeWindow(window.id)}
+                  className="cursor-pointer"
                 >
                   <img src={xIcon} alt="xIcon" />
                 </button>
