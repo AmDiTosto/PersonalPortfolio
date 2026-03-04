@@ -67,20 +67,7 @@ export default function MyComputerPage() {
                 key={item.id}
                 className="group flex cursor-pointer flex-col items-center gap-2"
               >
-                <div
-                  className="
-                        flex h-16 w-16 items-center justify-center
-                        border-2 border-t-white border-l-white
-                        border-r-[#808080] border-b-[#808080]
-                        bg-[#c3c7cb]
-                        transition-all duration-150
-                        group-hover:bg-[#b0b4b8]
-                        group-hover:border-t-[#808080]
-                        group-hover:border-l-[#808080]
-                        group-hover:border-r-white
-                        group-hover:border-b-white
-                        "
-                >
+                <div className=" flex items-center justify-center border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#c3c7cb] transition-all duration-150 group-hover:bg-[#b0b4b8] group-hover:border-t-[#808080] group-hover:border-l-[#808080] group-hover:border-r-white group-hover:border-b-white">
                   <img
                     src={item.src}
                     alt={item.label}
@@ -89,13 +76,7 @@ export default function MyComputerPage() {
                   />
                 </div>
 
-                <div
-                  className="
-          font-fixedsys text-sm text-[#24415f]
-          transition-colors duration-150
-          group-hover:text-[#1b2f44]
-        "
-                >
+                <div className="font-fixedsys text-sm text-[#24415f] transition-colors duration-150 group-hover:text-[#1b2f44]">
                   {item.label}
                 </div>
               </div>
