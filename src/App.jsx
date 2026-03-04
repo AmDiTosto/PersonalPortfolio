@@ -6,7 +6,9 @@ import emailIcon from "./assets/outlook_express-4.png";
 import documentIcon from "./assets/document-0.png";
 import xIcon from "./assets/msg_error-0.png";
 import windoesIcon from "./assets/windows-0.png";
-import MyComputerPage from "./components/MyComputer";
+import MyComputerPage from "./pages/MyComputer";
+import Experience from "./pages/Experience";
+import Contact from "./pages/Contact";
 
 function App() {
   const [viewport, setViewport] = useState(() =>
@@ -113,26 +115,7 @@ function App() {
           draggable="false"
         />
       ),
-      content: (
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
-            Experience
-          </h2>
-          <p>
-            Add your internships, co-op roles, leadership experience, and major
-            accomplishments here.
-          </p>
-          <div className="rounded-xl border border-[#95c6ec] bg-[#f2fbff] p-4">
-            <p className="font-semibold text-[#2d5f9c]">Example ideas</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Co-op / internship experience</li>
-              <li>Software development work</li>
-              <li>Leadership roles</li>
-              <li>Hackathons and student involvement</li>
-            </ul>
-          </div>
-        </div>
-      ),
+      content: <Experience />,
     },
     {
       id: "projects",
@@ -203,18 +186,7 @@ function App() {
           draggable="false"
         />
       ),
-      content: (
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
-            Contact
-          </h2>
-          <div className="space-y-2">
-            <p>Email: your-email@example.com</p>
-            <p>LinkedIn: linkedin.com/in/your-name</p>
-            <p>GitHub: github.com/your-name</p>
-          </div>
-        </div>
-      ),
+      content: <Contact />,
     },
     {
       id: "secret",
