@@ -8,6 +8,8 @@ import xIcon from "./assets/msg_error-0.png";
 import windoesIcon from "./assets/windows-0.png";
 import MyComputerPage from "./pages/MyComputer";
 import Experience from "./pages/Experience";
+import Projects from "./pages/Projects";
+import Resume from "./pages/Resume";
 import Contact from "./pages/Contact";
 
 function App() {
@@ -129,19 +131,7 @@ function App() {
           draggable="false"
         />
       ),
-      content: (
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
-            Projects
-          </h2>
-          <ul className="list-disc space-y-2 pl-5">
-            <li>Factory analytics and manufacturing software tools</li>
-            <li>React-based web applications and dashboards</li>
-            <li>NLP and skill extraction research work</li>
-            <li>Personal software and UI experiments</li>
-          </ul>
-        </div>
-      ),
+      content: <Projects />,
     },
     {
       id: "resume",
@@ -155,24 +145,7 @@ function App() {
           draggable="false"
         />
       ),
-      content: (
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-[#2d5f9c] sm:text-2xl">
-            Resume
-          </h2>
-          <p>
-            You can replace this section with your actual resume preview,
-            embedded PDF, or a download button later.
-          </p>
-          <div className="rounded-xl border border-[#a8d08d] bg-[#f5fff0] p-4">
-            <p className="font-semibold text-[#46743d]">Coming soon</p>
-            <p className="text-sm text-[#567b50]">
-              Add your education, experience, projects, and technical skills
-              here.
-            </p>
-          </div>
-        </div>
-      ),
+      content: <Resume />,
     },
     {
       id: "contact",
@@ -398,7 +371,7 @@ function App() {
                 key={item.id}
                 type="button"
                 onClick={() => openDesktopItem(item)}
-                className="flex w-20 flex-col items-center text-center sm:w-full"
+                className="flex w-20 flex-col items-center text-center sm:w-full cursor-pointer                "
               >
                 <div className="flex w-full justify-center py-2">
                   {item.icon}
