@@ -14,40 +14,34 @@ export default function Experience() {
       start: "May 2025",
       end: "Present",
       icon: martinreaIcon,
-      highlights: ["Impact statement #1 (what you built + outcome)"],
-      tech: ["React", "Tailwind", "Python", "Django"],
-      links: [
-        // { label: "Company", href: "https://example.com" },
-        // { label: "Project", href: "https://example.com" },
+      highlights: [
+        "I’m currently developing a real-time data-streaming application that processes production data from multiple manufacturing robots. It calculates key performance metrics and outputs the results to various dashboards, allowing teams to monitor performance and efficiency in real time.",
       ],
+      tech: ["C++", "Docker", "React", "Tailwind", "MQTT", "Mongo"],
     },
     {
-      id: "martinrea-2024",
+      id: "gdsc-2023-2024",
       company: "UOG Google Developer Student Club",
-      role: "Lead Software Developer",
+      role: "Technical Director",
       start: "Sep 2023",
       end: "Sep 2024",
       icon: gdscIcon,
-      highlights: ["Impact statement #1 (what you built + outcome)"],
-      tech: ["React", "Tailwind", "Python", "Django"],
-      links: [
-        // { label: "Company", href: "https://example.com" },
-        // { label: "Project", href: "https://example.com" },
+      highlights: [
+        "I was the Technical Lead for the Google Developer Student Club at the University of Guelph during the 2023–2024 academic year. In this role, I created and led several technical workshops that introduced students to a variety of technologies. I also had the opportunity to help organize a hackathon that welcomed over 250 attendees!",
       ],
+      tech: ["HTML", "CSS", "JavaScript", "Firebase"],
     },
     {
       id: "martinrea-2024",
       company: "Martinrea International Inc",
-      role: "Role Title",
+      role: "Full-Stack Developer",
       start: "May 2024",
       end: "Aug 2024",
       icon: martinreaIcon,
-      highlights: ["Impact statement #1 (what you built + outcome)"],
-      tech: ["React", "Tailwind", "Python", "Django"],
-      links: [
-        // { label: "Company", href: "https://example.com" },
-        // { label: "Project", href: "https://example.com" },
+      highlights: [
+        "Reconfigured an internal system that serves as a central source of information across the organization, by improving how data is shared and accessed by teams globally. I developed responsive user interface components that allow employees to input and manage machine specifications. I also redesigned the backend and SQL data structures to support a more dynamic and scalable system, and designed REST API endpoints that allow data submitted from the frontend to be stored and managed on the backend.",
       ],
+      tech: ["React", "Tailwind", "Python", "SQL", "REST"],
     },
   ];
 
