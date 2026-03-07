@@ -33,22 +33,25 @@ export default function MyComputerPage() {
         {/* Intro Panel */}
         <div className="border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#c0c0c0]">
           <div className="bg-[#0000aa] p-5">
-            <div className="font-fixedsys text-[22px] text-white">
+            <div className="font-fixedsys text-2xl text-white">
               Hello World!
             </div>
-
-            <div className="mt-4 space-y-3 font-fixedsys text-[16px] leading-relaxed text-white">
+            <div className="mt-4 space-y-4 font-fixedsys text-lg leading-relaxed text-white">
               <p>
-                My name is Adrian Di Tosto. I’m a Computer Science student
-                focused on building real-world software systems.
+                My name is Adrian, and welcome to my site! I&rsquo;m a student
+                based in Toronto, Ontario, where I currently study Computer
+                Science at the University of Guelph. I love solving challenging
+                problems and developing software that addresses real-world
+                problems and makes a meaningful impact.
               </p>
               <p>
-                I work on manufacturing analytics, edge systems, React
-                dashboards, and NLP research.
+                When I&rsquo;m not fixing bugs that I created, I&rsquo;m usually
+                learning about AI, hitting some cardio at the gym, or enjoying a
+                movie or TV show!
               </p>
             </div>
 
-            <div className="mt-6 font-fixedsys text-white">
+            <div className="mt-6 text-lg font-fixedsys text-white">
               <span>C:\Users\Adrian&gt;</span>
               <span className="ml-2 inline-block h-[18px] w-[10px] animate-pulse bg-white align-middle" />
             </div>
@@ -67,16 +70,16 @@ export default function MyComputerPage() {
                 key={item.id}
                 className="group flex cursor-pointer flex-col items-center gap-2"
               >
-                <div className=" flex items-center justify-center border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#c3c7cb] transition-all duration-150 group-hover:bg-[#b0b4b8] group-hover:border-t-[#808080] group-hover:border-l-[#808080] group-hover:border-r-white group-hover:border-b-white">
+                <div className="flex items-center justify-center border-4 p-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#c3c7cb] transition-all duration-150 group-hover:bg-[#b0b4b8] group-hover:border-t-[#808080] group-hover:border-l-[#808080] group-hover:border-r-white group-hover:border-b-white">
                   <img
                     src={item.src}
                     alt={item.label}
                     draggable={false}
-                    className="h-10 w-10 object-contain [image-rendering:pixelated]"
+                    className="object-contain [image-rendering:pixelated]"
                   />
                 </div>
 
-                <div className="font-fixedsys text-sm text-[#24415f] transition-colors duration-150 group-hover:text-[#1b2f44]">
+                <div className="font-fixedsys text-lg text-[#24415f] transition-colors duration-150 group-hover:text-[#1b2f44]">
                   {item.label}
                 </div>
               </div>
