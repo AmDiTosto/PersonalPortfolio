@@ -1,6 +1,3 @@
-// Experience.jsx
-// Dynamic + scalable template: add new jobs by pushing to EXPERIENCES.
-
 import birdWatcherIcon from "../assets/projectsIcons/birdWatcher.png";
 import callMeMaybe from "../assets/projectsIcons/callMeMaybe.png";
 import githubIcon from "../assets/github.png";

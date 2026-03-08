@@ -1,6 +1,3 @@
-// Experience.jsx
-// Dynamic + scalable template: add new jobs by pushing to EXPERIENCES.
-
 import martinreaIcon from "../assets/companyIcons/martinrea.png";
 import gdscIcon from "../assets/companyIcons/gdsc.png";
 import ExperienceCard from "../components/ExperienceCard";

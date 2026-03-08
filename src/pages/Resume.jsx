@@ -1,5 +1,3 @@
-// Resume.jsx
-
 import resumePdf from "../assets/resume.pdf";
 
 export default function Resume() {
