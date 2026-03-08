@@ -1,4 +1,4 @@
-import cppIcon from "../assets/csIcons/C++.png";
+import cppIcon from "../assets/csIcons/cpp.png";
 import linuxIcon from "../assets/csIcons/linux.png";
 import pythonIcon from "../assets/csIcons/python.png";
 import reactIcon from "../assets/csIcons/react.png";
@@ -17,7 +17,6 @@ const SKILL_ICONS = [
   { id: "python", label: "Python", src: pythonIcon },
   { id: "cpp", label: "C++", src: cppIcon },
   { id: "c", label: "C", src: cIcon },
-
   { id: "html", label: "HTML", src: htmlIcon },
   { id: "css", label: "CSS", src: cssIcon },
   { id: "javascript", label: "Javascript", src: javascriptIcon },
