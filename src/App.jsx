@@ -21,74 +21,10 @@ function App() {
 
   const [openWindows, setOpenWindows] = useState([]);
   const [dragging, setDragging] = useState(null);
-
+  const [currentTime, setCurrentTime] = useState(new Date());
   const zCounter = useRef(10);
   const openOffset = useRef(0);
-
-  const [currentTime, setCurrentTime] = useState(new Date());
-
   const TASKBAR_HEIGHT = 56;
-
-  function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-  }
-
-  function getViewportSize() {
-    return {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    };
-  }
-
-  function getTopSafeArea(viewportWidth) {
-    // On small screens the icons move to the top,
-    // so windows should open a bit lower.
-    return viewportWidth < 640 ? 100 : 12;
-  }
-
-  function getResponsiveWindowSize(viewportWidth, viewportHeight) {
-    const maxAllowedWidth = Math.max(220, viewportWidth - 24);
-    const maxAllowedHeight = Math.max(
-      200,
-      viewportHeight - TASKBAR_HEIGHT - 24
-    );
-
-    let targetWidth = 700;
-    let targetHeight = 500;
-
-    if (viewportWidth < 640) {
-      targetWidth = viewportWidth - 24;
-      targetHeight = viewportHeight - TASKBAR_HEIGHT - 120;
-    } else if (viewportWidth < 1024) {
-      targetWidth = Math.min(500, viewportWidth - 56);
-      targetHeight = Math.min(340, viewportHeight - TASKBAR_HEIGHT - 36);
-    }
-
-    return {
-      width: clamp(targetWidth, 220, maxAllowedWidth),
-      height: clamp(targetHeight, 200, maxAllowedHeight),
-    };
-  }
-
-  function clampWindowPosition(
-    x,
-    y,
-    width,
-    height,
-    viewportWidth,
-    viewportHeight
-  ) {
-    const minX = 12;
-    const minY = getTopSafeArea(viewportWidth);
-
-    const maxX = Math.max(minX, viewportWidth - width - 12);
-    const maxY = Math.max(minY, viewportHeight - TASKBAR_HEIGHT - height - 12);
-
-    return {
-      x: clamp(x, minX, maxX),
-      y: clamp(y, minY, maxY),
-    };
-  }
 
   const desktopItems = [
     {
@@ -177,6 +113,65 @@ function App() {
     },
   ];
 
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function getViewportSize() {
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  }
+
+  function getTopSafeArea(viewportWidth) {
+    return viewportWidth < 640 ? 100 : 12;
+  }
+
+  function getResponsiveWindowSize(viewportWidth, viewportHeight) {
+    const maxAllowedWidth = Math.max(220, viewportWidth - 24);
+    const maxAllowedHeight = Math.max(
+      200,
+      viewportHeight - TASKBAR_HEIGHT - 24
+    );
+
+    let targetWidth = 700;
+    let targetHeight = 500;
+
+    if (viewportWidth < 640) {
+      targetWidth = viewportWidth - 24;
+      targetHeight = viewportHeight - TASKBAR_HEIGHT - 120;
+    } else if (viewportWidth < 1024) {
+      targetWidth = Math.min(500, viewportWidth - 56);
+      targetHeight = Math.min(340, viewportHeight - TASKBAR_HEIGHT - 36);
+    }
+
+    return {
+      width: clamp(targetWidth, 220, maxAllowedWidth),
+      height: clamp(targetHeight, 200, maxAllowedHeight),
+    };
+  }
+
+  function clampWindowPosition(
+    x,
+    y,
+    width,
+    height,
+    viewportWidth,
+    viewportHeight
+  ) {
+    const minX = 12;
+    const minY = getTopSafeArea(viewportWidth);
+
+    const maxX = Math.max(minX, viewportWidth - width - 12);
+    const maxY = Math.max(minY, viewportHeight - TASKBAR_HEIGHT - height - 12);
+
+    return {
+      x: clamp(x, minX, maxX),
+      y: clamp(y, minY, maxY),
+    };
+  }
+
   function formatWindowsTime(date) {
     let hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -187,14 +182,6 @@ function App() {
 
     return `${hours}:${minutes} ${suffix}`;
   }
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   function getNextZ() {
     zCounter.current += 1;
@@ -209,6 +196,24 @@ function App() {
         window.id === id ? { ...window, z: nextZ } : window
       )
     );
+  }
+
+  function getDesktopIconLayout(viewportWidth, viewportHeight) {
+    const topOffset = 12;
+    const bottomOffset = 12;
+    const usableHeight =
+      viewportHeight - TASKBAR_HEIGHT - topOffset - bottomOffset;
+
+    const itemHeight = viewportWidth < 640 ? 92 : 108;
+    const itemWidth = viewportWidth < 640 ? 88 : 112;
+
+    const maxRows = Math.max(1, Math.floor(usableHeight / itemHeight));
+
+    return {
+      itemHeight,
+      itemWidth,
+      maxRows,
+    };
   }
 
   function openDesktopItem(item) {
@@ -281,6 +286,19 @@ function App() {
       offsetY: e.clientY - currentWindow.y,
     });
   }
+
+  const desktopIconLayout = getDesktopIconLayout(
+    viewport.width,
+    viewport.height
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     function handleResize() {
@@ -364,26 +382,42 @@ function App() {
     >
       <div className="min-h-screen w-full">
         <div className="relative h-screen w-full select-none p-3 sm:p-4">
-          {/* Desktop icons */}
-          <div className="absolute left-3 right-3 top-3 z-10 flex flex-row flex-wrap gap-x-3 gap-y-5 sm:right-auto sm:w-28 sm:flex-col sm:gap-6">
+          <div
+            className="absolute left-3 top-3 z-10"
+            style={{
+              display: "grid",
+              gridAutoFlow: "column",
+              gridTemplateRows: `repeat(${desktopIconLayout.maxRows}, ${desktopIconLayout.itemHeight}px)`,
+              gridAutoColumns: `${desktopIconLayout.itemWidth}px`,
+              gap: "8px 12px",
+              alignContent: "start",
+              justifyContent: "start",
+              maxHeight: `${viewport.height - TASKBAR_HEIGHT - 24}px`,
+              maxWidth: `${viewport.width - 24}px`,
+            }}
+          >
             {desktopItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => openDesktopItem(item)}
-                className="flex w-20 flex-col items-center text-center sm:w-full cursor-pointer                "
+                className="flex cursor-pointer flex-col items-center justify-start text-center"
+                style={{
+                  width: `${desktopIconLayout.itemWidth}px`,
+                  height: `${desktopIconLayout.itemHeight}px`,
+                }}
               >
                 <div className="flex w-full justify-center py-2">
                   {item.icon}
                 </div>
-                <span className="font-fixedsys text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
+
+                <span className="max-w-full px-1 font-fixedsys text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
                   {item.title}
                 </span>
               </button>
             ))}
           </div>
 
-          {/* Open windows */}
           {openWindows.map((window) => (
             <div
               key={window.id}
@@ -397,7 +431,6 @@ function App() {
                 zIndex: window.z,
               }}
             >
-              {/* Window top bar */}
               <div
                 onMouseDown={(e) => startDragging(e, window.id)}
                 className="flex h-10 cursor-move items-center justify-between border-b border-[#c9f0b2] bg-[#0000aa] px-3 text-white sm:h-12 sm:px-4"
@@ -417,18 +450,14 @@ function App() {
                 </button>
               </div>
 
-              {/* Window content */}
               <div className="h-[calc(100%-40px)] overflow-auto bg-[#c3c7cb] p-3 text-sm text-[#24415f] sm:h-[calc(100%-48px)] sm:p-5 sm:text-base">
                 {window.content}
               </div>
             </div>
           ))}
 
-          {/* Bottom taskbar */}
-          {/* Bottom taskbar */}
           <div className="absolute bottom-0 left-0 right-0 h-12 border-t border-[#dfdfdf] bg-[#c0c0c0] sm:h-14">
             <div className="flex h-full items-center justify-between px-1.5 sm:px-2">
-              {/* Left side */}
               <div className="flex min-w-0 items-center gap-1.5">
                 <button
                   type="button"
@@ -453,8 +482,6 @@ function App() {
                   </span>
                 </div>
               </div>
-
-              {/* Right side clock */}
               <div className="flex h-8 items-center border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-[#c0c0c0] px-2 text-black sm:h-9 sm:px-3">
                 <span className="font-fixedsys text-lg font-bold">
                   {formatWindowsTime(currentTime)}
