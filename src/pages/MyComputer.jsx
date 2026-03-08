@@ -10,15 +10,18 @@ import djangoIcon from "../assets/csIcons/django.png";
 import htmlIcon from "../assets/csIcons/html.png";
 import nodejsIcon from "../assets/csIcons/nodejs.png";
 import cssIcon from "../assets/csIcons/css.png";
+import sqlIcon from "../assets/csIcons/sql.svg";
+import cIcon from "../assets/csIcons/c.png";
 
 const SKILL_ICONS = [
   { id: "python", label: "Python", src: pythonIcon },
   { id: "cpp", label: "C++", src: cppIcon },
+  { id: "c", label: "C", src: cIcon },
+
   { id: "html", label: "HTML", src: htmlIcon },
   { id: "css", label: "CSS", src: cssIcon },
   { id: "javascript", label: "Javascript", src: javascriptIcon },
   { id: "react", label: "React", src: reactIcon },
-  { id: "nodejs", label: "Node.JS", src: nodejsIcon },
   { id: "django", label: "Django", src: djangoIcon },
   { id: "mongo", label: "Mongo", src: mongoIcon },
   { id: "firebase", label: "Firebase", src: firebaseIcon },
