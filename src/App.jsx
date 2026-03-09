@@ -24,7 +24,7 @@ function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const zCounter = useRef(10);
   const openOffset = useRef(0);
-  const TASKBAR_HEIGHT = 56;
+  const TASKBAR_HEIGHT = 60;
 
   const desktopItems = [
     {
@@ -389,9 +389,6 @@ function App() {
               gridAutoFlow: "column",
               gridTemplateRows: `repeat(${desktopIconLayout.maxRows}, ${desktopIconLayout.itemHeight}px)`,
               gridAutoColumns: `${desktopIconLayout.itemWidth}px`,
-              gap: "8px 12px",
-              alignContent: "start",
-              justifyContent: "start",
               maxHeight: `${viewport.height - TASKBAR_HEIGHT - 24}px`,
               maxWidth: `${viewport.width - 24}px`,
             }}
