@@ -1,7 +1,7 @@
-import birdWatcherIcon from "../assets/projectsIcons/birdWatcher.png";
-import callMeMaybe from "../assets/projectsIcons/callMeMaybe.png";
-import githubIcon from "../assets/github.png";
-import websiteLinkIcon from "../assets/websiteLink.png";
+import birdWatcherIcon from "../assets/projectsIcons/birdWatcher.svg";
+import callMeMaybe from "../assets/projectsIcons/callMeMaybe.svg";
+import githubIcon from "../assets/github.svg";
+import websiteLinkIcon from "../assets/websiteLink.svg";
 import ExperienceCard from "../components/ExperienceCard";
 
 export default function Projects() {
