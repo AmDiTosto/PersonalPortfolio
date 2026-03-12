@@ -13,7 +13,7 @@ export default function Projects() {
       highlights: [
         "Grab your tin-foil hats, charge your phones, and get ready to catch them all! Bird Watcher is a playful mobile application that encourages the younger generation to get outside and explore the world by spotting and identifying “government bird spies.” Built with Flutter and powered by the OpenAI API, the app analyzes photos of birds taken by users to determine whether they might be a suspicious government surveillance bird.",
       ],
-      tech: ["Flutter", "Python", "Dart", "Firebase"],
+      tech: ["Flutter", "Python", "Firebase"],
       links: [
         {
           icon: githubIcon,
