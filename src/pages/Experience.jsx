@@ -1,5 +1,5 @@
-import martinreaIcon from "../assets/companyIcons/martinrea.png";
-import gdscIcon from "../assets/companyIcons/gdsc.png";
+import martinreaIcon from "../assets/companyIcons/martinrea.svg";
+import gdscIcon from "../assets/companyIcons/gdsc.svg";
 import ExperienceCard from "../components/ExperienceCard";
 
 export default function Experience() {

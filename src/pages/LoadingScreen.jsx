@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import adrianImage from "../assets/adrian.png";
+import adrianImage from "../assets/adrian.svg";
 
 export default function LoadingScreen({ onComplete, onUserInteract }) {
   const [progress, setProgress] = useState(0);
