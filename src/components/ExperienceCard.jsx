@@ -7,7 +7,7 @@ export default function ExperienceCard({ exp }) {
             <img
               src={exp.icon}
               alt={`${exp.company} logo`}
-              className="h-[160px] w-[160px]"
+              className="h-[160px] w-[160px] select-none pointer-events-none"
             />
           </div>
         </div>
@@ -33,7 +33,7 @@ export default function ExperienceCard({ exp }) {
                     <img
                       src={l.icon}
                       alt={`${l.icon} logo`}
-                      className="h-[30px] w-[30px]"
+                      className="h-[30px] w-[30px] select-none pointer-events-none"
                     />
                   </a>
                 ))}
