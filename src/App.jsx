@@ -17,6 +17,7 @@ import LoadingScreen from "./pages/LoadingScreen";
 
 function App() {
   const TASKBAR_HEIGHT = 60;
+  const MOBILE_BREAKPOINT = 768;
 
   function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -30,7 +31,7 @@ function App() {
   }
 
   function getTopSafeArea(viewportWidth) {
-    return viewportWidth < 640 ? 100 : 12;
+    return viewportWidth < MOBILE_BREAKPOINT ? 12 : 12;
   }
 
   function getResponsiveWindowSize(viewportWidth, viewportHeight) {
@@ -43,12 +44,9 @@ function App() {
     let targetWidth = 700;
     let targetHeight = 500;
 
-    if (viewportWidth < 640) {
-      targetWidth = viewportWidth - 24;
-      targetHeight = viewportHeight - TASKBAR_HEIGHT - 120;
-    } else if (viewportWidth < 1024) {
-      targetWidth = Math.min(500, viewportWidth - 56);
-      targetHeight = Math.min(340, viewportHeight - TASKBAR_HEIGHT - 36);
+    if (viewportWidth < 1024) {
+      targetWidth = Math.min(560, viewportWidth - 48);
+      targetHeight = Math.min(420, viewportHeight - TASKBAR_HEIGHT - 36);
     }
 
     return {
@@ -93,6 +91,8 @@ function App() {
       ? { width: 1440, height: 900 }
       : getViewportSize()
   );
+
+  const isMobile = viewport.width < MOBILE_BREAKPOINT;
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [appPhase, setAppPhase] = useState("loading");
@@ -208,7 +208,7 @@ function App() {
     const height = overrides.height ?? defaultSize.height;
 
     const position = clampWindowPosition(
-      overrides.x ?? (viewport.width < 640 ? 12 : 150),
+      overrides.x ?? 150,
       overrides.y ?? getTopSafeArea(viewport.width),
       width,
       height,
@@ -228,13 +228,37 @@ function App() {
     };
   }
 
-  const [openWindows, setOpenWindows] = useState(() => {
-    if (desktopItemMap.about) {
-      return [createWindowFromItem(desktopItemMap.about, { z: 11 })];
-    }
-    return [];
-  });
+  function getInitialWindows() {
+    if (typeof window === "undefined") return [];
+    if (window.innerWidth < MOBILE_BREAKPOINT) return [];
+    if (!desktopItemMap.about) return [];
 
+    const size = getResponsiveWindowSize(window.innerWidth, window.innerHeight);
+    const position = clampWindowPosition(
+      150,
+      getTopSafeArea(window.innerWidth),
+      size.width,
+      size.height,
+      window.innerWidth,
+      window.innerHeight
+    );
+
+    return [
+      {
+        id: desktopItemMap.about.id,
+        title: desktopItemMap.about.title,
+        content: desktopItemMap.about.content,
+        width: size.width,
+        height: size.height,
+        x: position.x,
+        y: position.y,
+        z: 11,
+      },
+    ];
+  }
+
+  const [openWindows, setOpenWindows] = useState(getInitialWindows);
+  const [mobileActiveApp, setMobileActiveApp] = useState(null);
   const [dragging, setDragging] = useState(null);
 
   function getNextZ() {
@@ -258,8 +282,8 @@ function App() {
     const usableHeight =
       viewportHeight - TASKBAR_HEIGHT - topOffset - bottomOffset;
 
-    const itemHeight = viewportWidth < 640 ? 92 : 108;
-    const itemWidth = viewportWidth < 640 ? 88 : 112;
+    const itemHeight = 108;
+    const itemWidth = 112;
 
     const maxRows = Math.max(1, Math.floor(usableHeight / itemHeight));
 
@@ -278,9 +302,13 @@ function App() {
 
     if (item.type !== "window") return;
 
+    if (isMobile) {
+      setMobileActiveApp(item.id);
+      return;
+    }
+
     const topSafeArea = getTopSafeArea(viewport.width);
     const size = getResponsiveWindowSize(viewport.width, viewport.height);
-    const isSmallScreen = viewport.width < 640;
 
     setOpenWindows((prev) => {
       const existing = prev.find((window) => window.id === item.id);
@@ -292,11 +320,11 @@ function App() {
         );
       }
 
-      const offset = openOffset.current * (isSmallScreen ? 12 : 28);
+      const offset = openOffset.current * 28;
       openOffset.current = (openOffset.current + 1) % 6;
 
       const initialPosition = clampWindowPosition(
-        isSmallScreen ? 12 + offset : 150 + offset,
+        150 + offset,
         topSafeArea + offset,
         size.width,
         size.height,
@@ -325,6 +353,8 @@ function App() {
   }
 
   function startDragging(e, id) {
+    if (isMobile) return;
+
     e.preventDefault();
 
     const currentWindow = openWindows.find((window) => window.id === id);
@@ -396,6 +426,11 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (isMobile) {
+      setDragging(null);
+      return;
+    }
+
     const nextSize = getResponsiveWindowSize(viewport.width, viewport.height);
 
     setOpenWindows((prev) =>
@@ -418,11 +453,11 @@ function App() {
         };
       })
     );
-  }, [viewport]);
+  }, [viewport, isMobile]);
 
   useEffect(() => {
     function handleMouseMove(e) {
-      if (!dragging) return;
+      if (!dragging || isMobile) return;
 
       const activeWindow = openWindows.find(
         (window) => window.id === dragging.id
@@ -459,7 +494,7 @@ function App() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragging, openWindows, viewport]);
+  }, [dragging, openWindows, viewport, isMobile]);
 
   useEffect(() => {
     zCounter.current = openWindows.reduce(
@@ -482,6 +517,10 @@ function App() {
     }, 1200);
   }
 
+  const mobileActiveItem = mobileActiveApp
+    ? desktopItemMap[mobileActiveApp]
+    : null;
+
   return (
     <>
       <div className="relative min-h-screen w-full overflow-hidden bg-black">
@@ -501,109 +540,173 @@ function App() {
             style={{ backgroundImage: `url(${background})` }}
           >
             <div className="min-h-screen w-full">
-              <div className="relative h-screen w-full select-none p-3 sm:p-4">
-                <div
-                  className="absolute left-3 top-3 z-10"
-                  style={{
-                    display: "grid",
-                    gridAutoFlow: "column",
-                    gridTemplateRows: `repeat(${desktopIconLayout.maxRows}, ${desktopIconLayout.itemHeight}px)`,
-                    gridAutoColumns: `${desktopIconLayout.itemWidth}px`,
-                    maxHeight: `${viewport.height - TASKBAR_HEIGHT - 24}px`,
-                    maxWidth: `${viewport.width - 24}px`,
-                  }}
-                >
-                  {desktopItems.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => openDesktopItem(item)}
-                      className="flex cursor-pointer flex-col items-center justify-start text-center"
+              <div className="relative h-screen w-full select-none">
+                {isMobile ? (
+                  <>
+                    <div className="h-full w-full px-3 pb-[72px] pt-3">
+                      {mobileActiveItem ? (
+                        <div className="h-full overflow-hidden border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c3c7cb] shadow-[3px_3px_0_#000]">
+                          <div className="flex h-11 items-center justify-between border-b border-[#c9f0b2] bg-[#0000aa] px-3 text-white">
+                            <div className="min-w-0 flex-1">
+                              <span className="block truncate font-fixedsys text-base tracking-wide">
+                                {mobileActiveItem.title}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setMobileActiveApp(null)}
+                              className="ml-3 shrink-0"
+                            >
+                              <img
+                                src={xIcon}
+                                alt="Close app"
+                                className="h-6 w-6"
+                              />
+                            </button>
+                          </div>
+
+                          <div className="h-[calc(100%-44px)] overflow-auto bg-[#c3c7cb] p-3 text-sm text-[#24415f]">
+                            {mobileActiveItem.content}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-x-2 gap-y-4 pt-2">
+                          {desktopItems.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => openDesktopItem(item)}
+                              className="flex min-h-[96px] flex-col items-center justify-start rounded px-1 py-2 text-center active:bg-white/10"
+                            >
+                              <div className="flex h-14 w-full items-center justify-center">
+                                {item.icon}
+                              </div>
+
+                              <span className="mt-1 max-w-full break-words font-fixedsys text-[11px] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                                {item.title}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      className="absolute left-3 top-3 z-10"
                       style={{
-                        width: `${desktopIconLayout.itemWidth}px`,
-                        height: `${desktopIconLayout.itemHeight}px`,
+                        display: "grid",
+                        gridAutoFlow: "column",
+                        gridTemplateRows: `repeat(${desktopIconLayout.maxRows}, ${desktopIconLayout.itemHeight}px)`,
+                        gridAutoColumns: `${desktopIconLayout.itemWidth}px`,
+                        maxHeight: `${viewport.height - TASKBAR_HEIGHT - 24}px`,
+                        maxWidth: `${viewport.width - 24}px`,
                       }}
                     >
-                      <div className="flex w-full justify-center py-2">
-                        {item.icon}
-                      </div>
+                      {desktopItems.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => openDesktopItem(item)}
+                          className="flex cursor-pointer flex-col items-center justify-start text-center"
+                          style={{
+                            width: `${desktopIconLayout.itemWidth}px`,
+                            height: `${desktopIconLayout.itemHeight}px`,
+                          }}
+                        >
+                          <div className="flex w-full justify-center py-2">
+                            {item.icon}
+                          </div>
 
-                      <span className="max-w-full px-1 font-fixedsys text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
-                        {item.title}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                          <span className="max-w-full px-1 font-fixedsys text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
+                            {item.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
 
-                {openWindows.map((window) => (
-                  <div
-                    key={window.id}
-                    onMouseDown={() => bringToFront(window.id)}
-                    className="absolute overflow-hidden"
-                    style={{
-                      left: `${window.x}px`,
-                      top: `${window.y}px`,
-                      width: `${window.width}px`,
-                      height: `${window.height}px`,
-                      zIndex: window.z,
-                    }}
-                  >
-                    <div
-                      onMouseDown={(e) => startDragging(e, window.id)}
-                      className="flex h-10 cursor-move items-center justify-between border-b border-[#c9f0b2] bg-[#0000aa] px-3 text-white sm:h-12 sm:px-4"
-                    >
-                      <div className="flex min-w-0 items-center gap-2 bg-[#0000aa]">
-                        <span className="font-fixedsys text-xl tracking-wide">
-                          {window.title}
-                        </span>
-                      </div>
-
-                      <button
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={() => closeWindow(window.id)}
-                        className="cursor-pointer"
+                    {openWindows.map((window) => (
+                      <div
+                        key={window.id}
+                        onMouseDown={() => bringToFront(window.id)}
+                        className="absolute overflow-hidden border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] shadow-[3px_3px_0_#000]"
+                        style={{
+                          left: `${window.x}px`,
+                          top: `${window.y}px`,
+                          width: `${window.width}px`,
+                          height: `${window.height}px`,
+                          zIndex: window.z,
+                        }}
                       >
-                        <img src={xIcon} alt="Close window" />
-                      </button>
-                    </div>
+                        <div
+                          onMouseDown={(e) => startDragging(e, window.id)}
+                          className="flex h-10 cursor-move items-center justify-between border-b border-[#c9f0b2] bg-[#0000aa] px-3 text-white sm:h-12 sm:px-4"
+                        >
+                          <div className="flex min-w-0 items-center gap-2 bg-[#0000aa]">
+                            <span className="truncate font-fixedsys text-base tracking-wide sm:text-xl">
+                              {window.title}
+                            </span>
+                          </div>
 
-                    <div className="h-[calc(100%-40px)] overflow-auto bg-[#c3c7cb] p-3 text-sm text-[#24415f] sm:h-[calc(100%-48px)] sm:p-5 sm:text-base">
-                      {window.content}
-                    </div>
-                  </div>
-                ))}
+                          <button
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={() => closeWindow(window.id)}
+                            className="cursor-pointer"
+                          >
+                            <img
+                              src={xIcon}
+                              alt="Close window"
+                              className="h-6 w-6"
+                            />
+                          </button>
+                        </div>
 
-                <div className="absolute bottom-0 left-0 right-0 h-12 border-t border-[#dfdfdf] bg-[#c0c0c0] sm:h-14">
+                        <div className="h-[calc(100%-40px)] overflow-auto bg-[#c3c7cb] p-3 text-sm text-[#24415f] sm:h-[calc(100%-48px)] sm:p-5 sm:text-base">
+                          {window.content}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                <div className="absolute bottom-0 left-0 right-0 h-14 border-t border-[#dfdfdf] bg-[#c0c0c0]">
                   <div className="flex h-full items-center justify-between px-1.5 sm:px-2">
                     <div className="flex min-w-0 items-center gap-1.5">
                       <button
                         type="button"
-                        className="flex h-8 items-center justify-center gap-2 border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white sm:h-9 sm:px-3"
+                        onClick={() => {
+                          if (isMobile) {
+                            setMobileActiveApp(null);
+                          }
+                        }}
+                        className="flex h-9 items-center justify-center gap-2 border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white sm:px-3"
                       >
                         <img
                           src={windoesIcon}
                           alt="Windows icon"
                           className="h-6 w-6 shrink-0 object-contain"
                         />
-                        <span className="font-fixedsys font-bold text-lg">
+                        <span className="font-fixedsys text-base font-bold sm:text-lg">
                           Start
                         </span>
                       </button>
 
-                      <div className="flex h-8 items-center justify-center gap-2 border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black sm:h-9 sm:px-3">
+                      <div className="flex h-9 max-w-[140px] items-center justify-center gap-2 overflow-hidden border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black sm:max-w-none sm:px-3">
                         <img
                           src={computerIcon}
                           alt="Desktop icon"
                           className="h-6 w-6 shrink-0 object-contain"
                         />
-                        <span className="font-fixedsys font-bold text-lg">
+                        <span className="truncate font-fixedsys text-sm font-bold sm:text-lg">
                           My Desktop
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex h-8 items-center border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-[#c0c0c0] px-2 text-black sm:h-9 sm:px-3">
-                      <span className="font-fixedsys text-lg font-bold">
+                    <div className="flex h-9 items-center border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-[#c0c0c0] px-2 text-black sm:px-3">
+                      <span className="font-fixedsys text-sm font-bold sm:text-lg">
                         {formatWindowsTime(currentTime)}
                       </span>
                     </div>
