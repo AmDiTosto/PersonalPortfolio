@@ -188,7 +188,7 @@ function App() {
           draggable="false"
         />
       ),
-      url: "https://www.youtube.com/watch?v=2qBlE2-WL60",
+      url: "https://www.youtube.com/watch?v=a7Lq6ZlSqys",
     },
   ];
 
