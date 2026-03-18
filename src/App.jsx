@@ -663,6 +663,7 @@ function App() {
                         >
                           <img
                             src={xIcon}
+                            draggable={false}
                             alt="Close window"
                             className="h-6 w-6"
                           />
@@ -697,6 +698,7 @@ function App() {
                     >
                       <img
                         src={windoesIcon}
+                        draggable={false}
                         alt="Windows icon"
                         className="h-6 w-6 shrink-0 object-contain"
                       />
@@ -709,7 +711,8 @@ function App() {
                       <img
                         src={computerIcon}
                         alt="Desktop icon"
-                        className="h-6 w-6 shrink-0 object-contain"
+                        draggable={false}
+                        className="h-6 w-6 shrink-0 object-contain select-none pointer-events-none"
                       />
                       <span className="truncate font-fixedsys text-sm font-bold sm:text-lg">
                         My Desktop
