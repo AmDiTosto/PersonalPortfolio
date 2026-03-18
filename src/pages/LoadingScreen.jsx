@@ -18,6 +18,10 @@ export default function LoadingScreen({ onComplete, onUserInteract }) {
     "Launching desktop environment...",
   ];
 
+  const totalSegments = 18;
+  const filledSegments = Math.round((progress / 100) * totalSegments);
+  const displayedProgress = Math.round((filledSegments / totalSegments) * 100);
+
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
@@ -89,7 +93,7 @@ export default function LoadingScreen({ onComplete, onUserInteract }) {
                 <img
                   src={adrianImage}
                   alt="Adrian"
-                  className="h-full w-full object-cover select-none pointer-events-none"
+                  className="pointer-events-none h-full w-full select-none object-cover"
                 />
               </div>
             </div>
@@ -106,7 +110,7 @@ export default function LoadingScreen({ onComplete, onUserInteract }) {
             </div>
 
             <div className="border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-black p-3 sm:mb-5 sm:p-4">
-              <p className=" font-fixedsys text-sm leading-relaxed text-[#00ff00]  sm:text-base md:text-lg">
+              <p className="font-fixedsys text-sm leading-relaxed text-[#00ff00] sm:text-base md:text-lg">
                 {messages[messageIndex]}
               </p>
             </div>
@@ -116,19 +120,20 @@ export default function LoadingScreen({ onComplete, onUserInteract }) {
                 Loading Desktop...
               </span>
               <span className="min-w-[52px] text-right font-fixedsys text-xs sm:min-w-[56px] sm:text-sm md:text-base">
-                {progress}%
+                {displayedProgress}%
               </span>
             </div>
 
             <div className="border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-[#c0c0c0] p-1">
-              <div className="h-4 border border-black bg-white sm:h-5 md:h-6">
-                <div
-                  className="h-full bg-[#000080]"
-                  style={{
-                    width: `${progress}%`,
-                    transition: "width 90ms linear",
-                  }}
-                />
+              <div className="flex h-6 items-center gap-[2px] border border-[#7f7f7f] bg-white px-[3px] sm:h-7">
+                {Array.from({ length: totalSegments }).map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-[70%] flex-1 ${
+                      index < filledSegments ? "bg-[#0000a8]" : "bg-transparent"
+                    }`}
+                  />
+                ))}
               </div>
             </div>
           </div>
