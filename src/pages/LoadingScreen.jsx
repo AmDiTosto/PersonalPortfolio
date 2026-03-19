@@ -10,12 +10,10 @@ export default function LoadingScreen({ onComplete, onUserInteract }) {
   const finishTimeoutRef = useRef(null);
 
   const messages = [
-    "Booting OS...",
-    "Loading portfolio files...",
-    "Initializing projects...",
-    "Preparing experience folder...",
-    "Connecting contact.exe...",
-    "Launching desktop environment...",
+    "Computer Science Student @ University of Guelph",
+    "Full-Stack Developer @ Martinrea International Inc",
+    "2+ Years of Technical Work Experience",
+    "Experience in React, Python, and C++",
   ];
 
   const totalSegments = 18;
