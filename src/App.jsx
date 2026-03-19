@@ -28,7 +28,7 @@ function App() {
   const MOBILE_BREAKPOINT = 768;
 
   const MAX_MISSES = 5;
-  const GAME_IDLE_MS = 10000;
+  const GAME_IDLE_MS = 15000;
   const MAX_ACTIVE_BIRDS = 6;
 
   const BIRD_TYPES = [
