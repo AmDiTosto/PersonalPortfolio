@@ -22,7 +22,7 @@ import gameStartSound from "./assets/sounds/start.mp3";
 import gameOverSound from "./assets/sounds/game-over.mp3";
 import DuckHuntField from "./components/DuckHuntField";
 import DuckHuntMetrics from "./components/DuckHuntMetrics";
-import scopeCursorImage from "./assets/scope.png"; // add this
+import scopeCursorImage from "./assets/scope.png"; 
 
 function App() {
 
