@@ -22,10 +22,9 @@ import gameStartSound from "./assets/sounds/start.mp3";
 import gameOverSound from "./assets/sounds/game-over.mp3";
 import DuckHuntField from "./components/DuckHuntField";
 import DuckHuntMetrics from "./components/DuckHuntMetrics";
-import scopeCursorImage from "./assets/scope.png"; 
+import scopeCursorImage from "./assets/scope.png";
 
 function App() {
-
   const scopeCursor = `url(${scopeCursorImage}) 32 32, crosshair`;
 
   const TASKBAR_HEIGHT = 56;
@@ -159,6 +158,7 @@ function App() {
   const [mobileActiveApp, setMobileActiveApp] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [birds, setBirds] = useState([]);
+  const [pointPopups, setPointPopups] = useState([]);
   const [gameActive, setGameActive] = useState(false);
   const [gameOverVisible, setGameOverVisible] = useState(false);
   const [score, setScore] = useState(0);
@@ -178,6 +178,7 @@ function App() {
 
   const transitionTimeoutRef = useRef(null);
   const birdSpawnTimeoutRef = useRef(null);
+  const secondaryBirdSpawnTimeoutRef = useRef(null);
   const gameTimeoutRef = useRef(null);
   const flashTimeoutRef = useRef(null);
   const gameOverHudFallbackTimeoutRef = useRef(null);
@@ -190,6 +191,7 @@ function App() {
   const scoreRef = useRef(0);
   const missesRef = useRef(0);
   const pageIsActiveRef = useRef(pageIsActive);
+  const gameOverVisibleRef = useRef(false);
   const idleDeadlineRef = useRef(0);
 
   const desktopItems = [
@@ -438,6 +440,13 @@ function App() {
     }
   }
 
+  function clearSecondaryBirdSpawnTimer() {
+    if (secondaryBirdSpawnTimeoutRef.current) {
+      window.clearTimeout(secondaryBirdSpawnTimeoutRef.current);
+      secondaryBirdSpawnTimeoutRef.current = null;
+    }
+  }
+
   function clearGameTimeout() {
     if (gameTimeoutRef.current) {
       window.clearTimeout(gameTimeoutRef.current);
@@ -457,6 +466,19 @@ function App() {
       window.clearInterval(idleCountdownIntervalRef.current);
       idleCountdownIntervalRef.current = null;
     }
+  }
+
+  function stopGameOverAudio() {
+    const audio = gameOverAudioRef.current;
+    if (!audio) return;
+
+    audio.onended = null;
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  function removePointPopup(id) {
+    setPointPopups((prev) => prev.filter((popup) => popup.id !== id));
   }
 
   function startIdleCountdownInterval() {
@@ -480,10 +502,7 @@ function App() {
       gameOverHudFallbackTimeoutRef.current = null;
     }
 
-    const audio = gameOverAudioRef.current;
-    if (audio) {
-      audio.onended = null;
-    }
+    stopGameOverAudio();
   }
 
   function syncGameState(nextScore, nextMisses) {
@@ -497,13 +516,16 @@ function App() {
   function hideGameOverHudAndReset() {
     clearGameOverHold();
     clearIdleCountdownInterval();
+    gameOverVisibleRef.current = false;
     setGameOverVisible(false);
     setIdleMsLeft(GAME_IDLE_MS);
+    setPointPopups([]);
     syncGameState(0, 0);
   }
 
   function playGameOverAndHoldHud() {
     const audio = gameOverAudioRef.current;
+    gameOverVisibleRef.current = true;
     setGameOverVisible(true);
 
     if (!audio) {
@@ -573,9 +595,12 @@ function App() {
 
   function startGameSession() {
     clearGameOverHold();
+    clearSecondaryBirdSpawnTimer();
+    gameOverVisibleRef.current = false;
     setGameOverVisible(false);
     setOpenWindows([]);
     setMobileActiveApp(null);
+    setPointPopups([]);
 
     gameActiveRef.current = true;
     setGameActive(true);
@@ -590,12 +615,15 @@ function App() {
     if (!gameActiveRef.current) return;
 
     gameActiveRef.current = false;
+    gameOverVisibleRef.current = true;
     setGameActive(false);
     clearGameTimeout();
     clearBirdSpawnTimer();
+    clearSecondaryBirdSpawnTimer();
     clearIdleCountdownInterval();
     setIdleMsLeft(GAME_IDLE_MS);
     setBirds([]);
+    setPointPopups([]);
     birdsRef.current = [];
     triggerFlash("end", 240);
     playGameOverAndHoldHud();
@@ -612,6 +640,8 @@ function App() {
 
     const nextMisses = missesRef.current + 1;
     syncGameState(scoreRef.current, nextMisses);
+
+    triggerFlash("miss", 170);
 
     if (nextMisses >= MAX_MISSES) {
       endGame();
@@ -664,13 +694,12 @@ function App() {
 
   function spawnBird() {
     if (!pageIsActiveRef.current) return;
-    if (gameOverVisible) return;
+    if (gameOverVisibleRef.current) return;
     if (birdsRef.current.length >= MAX_ACTIVE_BIRDS) return;
 
     const birdType = pickRandomBirdType();
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-    let size = 72 + Math.floor(Math.random() * 24);
+    const size = 72 + Math.floor(Math.random() * 24);
 
     const minTop = 96;
     const maxTop = Math.max(
@@ -737,6 +766,18 @@ function App() {
 
     if (!didShoot) return;
 
+    const popupId = `${id}-points`;
+
+    setPointPopups((prev) => [
+      ...prev,
+      {
+        id: popupId,
+        x: birdRect.right - desktopRect.left + 8,
+        y: birdRect.top - desktopRect.top + 6,
+        points: shotBirdPoints,
+      },
+    ]);
+
     playGunshot();
 
     if (!gameActiveRef.current) {
@@ -773,16 +814,15 @@ function App() {
     viewport.height
   );
 
+  const desktopGameCursor =
+    !isMobile && appPhase === "desktop" && gameActive && !gameOverVisible
+      ? scopeCursor
+      : "default";
 
-const desktopGameCursor =
-  !isMobile && appPhase === "desktop" && gameActive && !gameOverVisible
-    ? scopeCursor
-    : "default";
-
-const birdCursor =
-  !isMobile && appPhase === "desktop" && !gameOverVisible
-    ? scopeCursor
-    : "pointer";
+  const birdCursor =
+    !isMobile && appPhase === "desktop" && !gameOverVisible
+      ? scopeCursor
+      : "pointer";
 
   useEffect(() => {
     birdsRef.current = birds;
@@ -815,6 +855,7 @@ const birdCursor =
       }
 
       clearBirdSpawnTimer();
+      clearSecondaryBirdSpawnTimer();
       clearGameTimeout();
       clearFlashTimer();
       clearGameOverHold();
@@ -845,6 +886,10 @@ const birdCursor =
   useEffect(() => {
     pageIsActiveRef.current = pageIsActive;
   }, [pageIsActive]);
+
+  useEffect(() => {
+    gameOverVisibleRef.current = gameOverVisible;
+  }, [gameOverVisible]);
 
   useEffect(() => {
     function updatePageActivity() {
@@ -963,12 +1008,15 @@ const birdCursor =
 
   useEffect(() => {
     clearBirdSpawnTimer();
+    clearSecondaryBirdSpawnTimer();
 
     if (appPhase !== "desktop" || isMobile) {
       setBirds([]);
+      setPointPopups([]);
       birdsRef.current = [];
       gameActiveRef.current = false;
       setGameActive(false);
+      gameOverVisibleRef.current = false;
       setGameOverVisible(false);
       setIdleMsLeft(GAME_IDLE_MS);
       syncGameState(0, 0);
@@ -982,19 +1030,23 @@ const birdCursor =
 
     if (!pageIsActive) {
       clearBirdSpawnTimer();
+      clearSecondaryBirdSpawnTimer();
       clearGameTimeout();
       clearIdleCountdownInterval();
       setIdleMsLeft(GAME_IDLE_MS);
       setBirds([]);
+      setPointPopups([]);
       birdsRef.current = [];
       return;
     }
 
     if (gameOverVisible) {
       clearBirdSpawnTimer();
+      clearSecondaryBirdSpawnTimer();
       clearIdleCountdownInterval();
       setIdleMsLeft(GAME_IDLE_MS);
       setBirds([]);
+      setPointPopups([]);
       birdsRef.current = [];
       return;
     }
@@ -1006,19 +1058,28 @@ const birdCursor =
     function scheduleNextBird() {
       birdSpawnTimeoutRef.current = window.setTimeout(() => {
         if (!pageIsActiveRef.current) return;
-        if (gameOverVisible) return;
+        if (gameOverVisibleRef.current) return;
 
         spawnBird();
 
-        if (gameActiveRef.current && Math.random() < 0.35) {
-          window.setTimeout(() => {
+        if (
+          gameActiveRef.current &&
+          !gameOverVisibleRef.current &&
+          Math.random() < 0.35
+        ) {
+          clearSecondaryBirdSpawnTimer();
+
+          secondaryBirdSpawnTimeoutRef.current = window.setTimeout(() => {
             if (!pageIsActiveRef.current) return;
-            if (gameOverVisible) return;
+            if (gameOverVisibleRef.current) return;
+
             spawnBird();
           }, 180 + Math.random() * 240);
         }
 
-        scheduleNextBird();
+        if (!gameOverVisibleRef.current && pageIsActiveRef.current) {
+          scheduleNextBird();
+        }
       }, getNextBirdDelay());
     }
 
@@ -1026,6 +1087,7 @@ const birdCursor =
 
     return () => {
       clearBirdSpawnTimer();
+      clearSecondaryBirdSpawnTimer();
     };
   }, [
     appPhase,
@@ -1093,6 +1155,8 @@ const birdCursor =
                     background:
                       flashMode === "start"
                         ? "rgba(255,255,255,0.06)"
+                        : flashMode === "miss"
+                        ? "rgba(255, 80, 80, 0.22)"
                         : "rgba(255,120,80,0.08)",
                   }}
                 />
@@ -1220,6 +1284,22 @@ const birdCursor =
                     onBirdAnimationEnd={handleBirdAnimationEnd}
                   />
 
+                  <div className="pointer-events-none absolute inset-0 z-[34] overflow-hidden">
+                    {pointPopups.map((popup) => (
+                      <div
+                        key={popup.id}
+                        onAnimationEnd={() => removePointPopup(popup.id)}
+                        className="absolute font-fixedsys text-3xl font-bold text-[#fff2c8] drop-shadow-[2px_2px_0_rgba(0,0,0,0.9)]"                        style={{
+                          left: `${popup.x}px`,
+                          top: `${popup.y}px`,
+                          animation: "pointPopupFloat 1500ms ease-out forwards",
+                        }}
+                      >
+                        +{popup.points}
+                      </div>
+                    ))}
+                  </div>
+
                   {openWindows.map((window) => (
                     <div
                       key={window.id}
@@ -1312,7 +1392,7 @@ const birdCursor =
                         src={computerIcon}
                         alt="Desktop icon"
                         draggable={false}
-                        className="h-6 w-6 shrink-0 object-contain select-none pointer-events-none"
+                        className="pointer-events-none h-6 w-6 shrink-0 select-none object-contain"
                       />
                       <span className="truncate font-fixedsys text-sm font-bold sm:text-lg">
                         My Desktop
@@ -1343,6 +1423,23 @@ const birdCursor =
           </div>
         ) : null}
       </div>
+
+      <style>{`
+        @keyframes pointPopupFloat {
+          0% {
+            opacity: 0;
+            transform: translateY(8px) scale(0.9);
+          }
+          15% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-28px) scale(1.05);
+          }
+        }
+      `}</style>
 
       <Analytics />
     </>
