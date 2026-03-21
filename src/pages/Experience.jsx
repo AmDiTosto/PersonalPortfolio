@@ -14,7 +14,7 @@ export default function Experience() {
       highlights: [
         "I’m currently developing a real-time data-streaming application that processes production data from multiple manufacturing robots. It calculates key performance metrics and outputs the results to various dashboards, allowing teams to monitor performance and efficiency in real time.",
       ],
-      tech: ["C++", "Docker", "React", "Tailwind", "MQTT", "Mongo"],
+      tech: ["C++", "Docker", "React", "Tailwind", "MQTT", "SQL", "PostgREST"],
     },
     {
       id: "gdsc-2023-2024",
@@ -26,7 +26,7 @@ export default function Experience() {
       highlights: [
         "I was the Technical Lead for the Google Developer Student Club at the University of Guelph during the 2023–2024 academic year. In this role, I created and led several technical workshops that introduced students to a variety of technologies. I also had the opportunity to help organize a hackathon that welcomed over 250 attendees!",
       ],
-      tech: ["HTML", "CSS", "JavaScript", "Firebase"],
+      tech: ["HTML", "CSS", "JavaScript", "React", "Firebase"],
     },
     {
       id: "martinrea-2024",
