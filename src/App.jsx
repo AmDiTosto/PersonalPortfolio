@@ -22,8 +22,12 @@ import gameStartSound from "./assets/sounds/start.mp3";
 import gameOverSound from "./assets/sounds/game-over.mp3";
 import DuckHuntField from "./components/DuckHuntField";
 import DuckHuntMetrics from "./components/DuckHuntMetrics";
+import scopeCursorImage from "./assets/scope.png"; // add this
 
 function App() {
+
+  const scopeCursor = `url(${scopeCursorImage}) 32 32, crosshair`;
+
   const TASKBAR_HEIGHT = 56;
   const MOBILE_BREAKPOINT = 768;
 
@@ -667,8 +671,6 @@ function App() {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     let size = 72 + Math.floor(Math.random() * 24);
-    if (birdType.type === "red") size -= 4;
-    if (birdType.type === "blue") size -= 8;
 
     const minTop = 96;
     const maxTop = Math.max(
@@ -771,15 +773,16 @@ function App() {
     viewport.height
   );
 
-  const desktopGameCursor =
-    !isMobile && appPhase === "desktop" && gameActive && !gameOverVisible
-      ? "crosshair"
-      : "default";
 
-  const birdCursor =
-    !isMobile && appPhase === "desktop" && !gameOverVisible
-      ? "crosshair"
-      : "pointer";
+const desktopGameCursor =
+  !isMobile && appPhase === "desktop" && gameActive && !gameOverVisible
+    ? scopeCursor
+    : "default";
+
+const birdCursor =
+  !isMobile && appPhase === "desktop" && !gameOverVisible
+    ? scopeCursor
+    : "pointer";
 
   useEffect(() => {
     birdsRef.current = birds;
