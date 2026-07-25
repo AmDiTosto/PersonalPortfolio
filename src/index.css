@@ -8,6 +8,101 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "W95FA";
+  src: url("./assets/fonts/W95FA.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-fixedsys: "Fixedsys Excelsior", monospace;
+  --font-ui: "W95FA", Tahoma, Verdana, Geneva, sans-serif;
+
+  --color-desktop: #008080;
+
+  --color-win-face: #c0c0c0;
+  --color-win-content: #ffffff;
+  --color-win-light: #ffffff;
+  --color-win-shadow: #808080;
+  --color-win-title: #000080;
+  --color-win-title-text: #ffffff;
+  --color-win-text: #000000;
+  --color-win-muted: #404040;
+  --color-win-green: #008000;
+  --color-win-red: #c00000;
+}
+
+@utility win-frame {
+  background-clip: padding-box;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff,
+    inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf,
+    0 5px 14px -3px rgba(0, 0, 0, 0.45);
+}
+
+@utility win-raise {
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff,
+    inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf;
+}
+
+@utility win-sink {
+  box-shadow: inset -1px -1px 0 0 #ffffff, inset 1px 1px 0 0 #0a0a0a,
+    inset -2px -2px 0 0 #dfdfdf, inset 2px 2px 0 0 #808080;
+}
+
+@utility win-pressed {
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #808080,
+    inset -2px -2px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a;
+}
+
+@utility win-btn {
+  background-color: #c0c0c0;
+  color: #000000;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff,
+    inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf;
+}
+
+@utility aero-titlebar {
+  background-image: linear-gradient(to right, #000080, #1084d0);
+  color: #ffffff;
+}
+
+@utility aero-titlebar-inactive {
+  background-image: linear-gradient(to right, #808080, #b5b5b5);
+  color: #dfdfdf;
+}
+
+@utility aero-azure {
+  background-image: linear-gradient(to right, #000080, #1084d0);
+  color: #ffffff;
+}
+
+@utility aero-orb {
+  background-color: #c0c0c0;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff,
+    inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf;
+}
+
+@utility aero-taskbar {
+  background-color: #c0c0c0;
+  border-top: 1px solid #ffffff;
+  box-shadow: inset 0 1px 0 0 #dfdfdf;
+}
+
+@utility aero-start {
+  background-color: #c0c0c0;
+  color: #000000;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff,
+    inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
