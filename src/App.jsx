@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
-import background from "./assets/desktopIcons/background.svg";
 import computerIcon from "./assets/desktopIcons/computer_explorer-5.svg";
 import folderIcon from "./assets/desktopIcons/directory_open_file_mydocs-4.svg";
 import emailIcon from "./assets/desktopIcons/outlook_express-4.svg";
 import documentIcon from "./assets/desktopIcons/document-0.svg";
-import xIcon from "./assets/desktopIcons/msg_error-0.svg";
 import windoesIcon from "./assets/desktopIcons/windows-0.svg";
 import startupSound from "./assets/sounds/startSound.mp3";
 import blackDuckSprite from "./assets/black_duck_strip.png";
@@ -16,6 +14,7 @@ import Experience from "./pages/Experience";
 import Projects from "./pages/Projects";
 import Resume from "./pages/Resume";
 import Contact from "./pages/Contact";
+import SecretVideo from "./pages/SecretVideo";
 import LoadingScreen from "./pages/LoadingScreen";
 import gunshotSound from "./assets/sounds/gunshot.mp3";
 import gameStartSound from "./assets/sounds/start.mp3";
@@ -23,6 +22,19 @@ import gameOverSound from "./assets/sounds/game-over.mp3";
 import DuckHuntField from "./components/DuckHuntField";
 import DuckHuntMetrics from "./components/DuckHuntMetrics";
 import scopeCursorImage from "./assets/scope.png";
+
+const WINDOW_ICON_SRC = {
+  about: computerIcon,
+  experience: folderIcon,
+  projects: folderIcon,
+  resume: documentIcon,
+  contact: emailIcon,
+  secret: folderIcon,
+};
+
+function nowMs() {
+  return Date.now();
+}
 
 function App() {
   const scopeCursor = `url(${scopeCursorImage}) 32 32, crosshair`;
@@ -165,6 +177,9 @@ function App() {
   const [misses, setMisses] = useState(0);
   const [idleMsLeft, setIdleMsLeft] = useState(GAME_IDLE_MS);
   const [flashMode, setFlashMode] = useState("none");
+  const [startMenuOpen, setStartMenuOpen] = useState(false);
+  const [hasEverPlayed, setHasEverPlayed] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   const zCounter = useRef(10);
   const openOffset = useRef(0);
@@ -190,6 +205,7 @@ function App() {
   const gameActiveRef = useRef(false);
   const scoreRef = useRef(0);
   const missesRef = useRef(0);
+  const reducedMotionRef = useRef(false);
   const pageIsActiveRef = useRef(pageIsActive);
   const gameOverVisibleRef = useRef(false);
   const idleDeadlineRef = useRef(0);
@@ -267,7 +283,7 @@ function App() {
     },
     {
       id: "secret",
-      type: "external-link",
+      type: "window",
       title: "Adrian SECRET folder",
       icon: (
         <img
@@ -277,7 +293,7 @@ function App() {
           draggable="false"
         />
       ),
-      url: "https://www.youtube.com/watch?v=a7Lq6ZlSqys",
+      content: <SecretVideo />,
     },
   ];
 
@@ -312,6 +328,9 @@ function App() {
         x: position.x,
         y: position.y,
         z: 11,
+        minimized: false,
+        maximized: false,
+        restoreRect: null,
       },
     ];
   }
@@ -356,11 +375,6 @@ function App() {
       return;
     }
 
-    if (item.type === "external-link" && item.url) {
-      window.open(item.url, "_blank", "noopener,noreferrer");
-      return;
-    }
-
     if (item.type !== "window") return;
 
     if (isMobile) {
@@ -376,7 +390,9 @@ function App() {
       if (existing) {
         const nextZ = getNextZ();
         return prev.map((window) =>
-          window.id === item.id ? { ...window, z: nextZ } : window
+          window.id === item.id
+            ? { ...window, z: nextZ, minimized: false }
+            : window
         );
       }
 
@@ -403,6 +419,9 @@ function App() {
           x: initialPosition.x,
           y: initialPosition.y,
           z: getNextZ(),
+          minimized: false,
+          maximized: false,
+          restoreRect: null,
         },
       ];
     });
@@ -410,6 +429,103 @@ function App() {
 
   function closeWindow(id) {
     setOpenWindows((prev) => prev.filter((window) => window.id !== id));
+  }
+
+  function getMaximizedRect() {
+    return {
+      x: 0,
+      y: 0,
+      width: viewport.width,
+      height: Math.max(200, viewport.height - TASKBAR_HEIGHT),
+    };
+  }
+
+  function minimizeWindow(id) {
+    setOpenWindows((prev) =>
+      prev.map((window) =>
+        window.id === id ? { ...window, minimized: true } : window
+      )
+    );
+  }
+
+  function toggleMaximizeWindow(id) {
+    setOpenWindows((prev) =>
+      prev.map((window) => {
+        if (window.id !== id) return window;
+
+        if (window.maximized) {
+          const restore = window.restoreRect ?? {
+            x: window.x,
+            y: window.y,
+            width: window.width,
+            height: window.height,
+          };
+
+          return {
+            ...window,
+            maximized: false,
+            restoreRect: null,
+            ...restore,
+          };
+        }
+
+        const maxRect = getMaximizedRect();
+
+        return {
+          ...window,
+          maximized: true,
+          restoreRect: {
+            x: window.x,
+            y: window.y,
+            width: window.width,
+            height: window.height,
+          },
+          ...maxRect,
+        };
+      })
+    );
+  }
+
+  function getTopWindowId() {
+    let topId = null;
+    let topZ = -Infinity;
+
+    for (const window of openWindows) {
+      if (window.minimized) continue;
+      if (window.z > topZ) {
+        topZ = window.z;
+        topId = window.id;
+      }
+    }
+
+    return topId;
+  }
+
+  function handleTaskbarWindowClick(id) {
+    const target = openWindows.find((window) => window.id === id);
+    if (!target) return;
+
+    if (target.minimized) {
+      const nextZ = getNextZ();
+      setOpenWindows((prev) =>
+        prev.map((window) =>
+          window.id === id ? { ...window, minimized: false, z: nextZ } : window
+        )
+      );
+      return;
+    }
+
+    if (getTopWindowId() === id) {
+      minimizeWindow(id);
+      return;
+    }
+
+    bringToFront(id);
+  }
+
+  function openStartMenuItem(item) {
+    setStartMenuOpen(false);
+    openDesktopItem(item);
   }
 
   function playClonedAudio(audioTargetRef, volume = 1) {
@@ -573,6 +689,8 @@ function App() {
   }
 
   function triggerFlash(mode, duration) {
+    if (reducedMotionRef.current) return;
+
     clearFlashTimer();
     setFlashMode(mode);
 
@@ -584,7 +702,7 @@ function App() {
   function resetGameSessionTimeout() {
     clearGameTimeout();
 
-    idleDeadlineRef.current = Date.now() + GAME_IDLE_MS;
+    idleDeadlineRef.current = nowMs() + GAME_IDLE_MS;
     setIdleMsLeft(GAME_IDLE_MS);
     startIdleCountdownInterval();
 
@@ -604,6 +722,7 @@ function App() {
 
     gameActiveRef.current = true;
     setGameActive(true);
+    setHasEverPlayed(true);
     setIdleMsLeft(GAME_IDLE_MS);
     syncGameState(0, 0);
     playGameStart();
@@ -666,6 +785,7 @@ function App() {
 
     const currentWindow = openWindows.find((window) => window.id === id);
     if (!currentWindow) return;
+    if (currentWindow.maximized) return;
 
     bringToFront(id);
 
@@ -814,6 +934,8 @@ function App() {
     viewport.height
   );
 
+  const topWindowId = getTopWindowId();
+
   const desktopGameCursor =
     !isMobile && appPhase === "desktop" && gameActive && !gameOverVisible
       ? scopeCursor
@@ -888,6 +1010,22 @@ function App() {
   }, [pageIsActive]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    function updateReducedMotion() {
+      reducedMotionRef.current = query.matches;
+      setReducedMotion(query.matches);
+    }
+
+    updateReducedMotion();
+    query.addEventListener("change", updateReducedMotion);
+
+    return () => query.removeEventListener("change", updateReducedMotion);
+  }, []);
+
+  useEffect(() => {
     gameOverVisibleRef.current = gameOverVisible;
   }, [gameOverVisible]);
 
@@ -921,42 +1059,54 @@ function App() {
 
   useEffect(() => {
     function handleResize() {
-      setViewport(getViewportSize());
+      const nextViewport = getViewportSize();
+      setViewport(nextViewport);
+
+      if (nextViewport.width < MOBILE_BREAKPOINT) {
+        setDragging(null);
+        return;
+      }
+
+      const nextSize = getResponsiveWindowSize(
+        nextViewport.width,
+        nextViewport.height
+      );
+
+      setOpenWindows((prev) =>
+        prev.map((window) => {
+          if (window.maximized) {
+            return {
+              ...window,
+              x: 0,
+              y: 0,
+              width: nextViewport.width,
+              height: Math.max(200, nextViewport.height - TASKBAR_HEIGHT),
+            };
+          }
+
+          const nextPosition = clampWindowPosition(
+            window.x,
+            window.y,
+            nextSize.width,
+            nextSize.height,
+            nextViewport.width,
+            nextViewport.height
+          );
+
+          return {
+            ...window,
+            width: nextSize.width,
+            height: nextSize.height,
+            x: nextPosition.x,
+            y: nextPosition.y,
+          };
+        })
+      );
     }
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  useEffect(() => {
-    if (isMobile) {
-      setDragging(null);
-      return;
-    }
-
-    const nextSize = getResponsiveWindowSize(viewport.width, viewport.height);
-
-    setOpenWindows((prev) =>
-      prev.map((window) => {
-        const nextPosition = clampWindowPosition(
-          window.x,
-          window.y,
-          nextSize.width,
-          nextSize.height,
-          viewport.width,
-          viewport.height
-        );
-
-        return {
-          ...window,
-          width: nextSize.width,
-          height: nextSize.height,
-          x: nextPosition.x,
-          y: nextPosition.y,
-        };
-      })
-    );
-  }, [viewport, isMobile]);
 
   useEffect(() => {
     function handleMouseMove(e) {
@@ -1010,7 +1160,7 @@ function App() {
     clearBirdSpawnTimer();
     clearSecondaryBirdSpawnTimer();
 
-    if (appPhase !== "desktop" || isMobile) {
+    if (appPhase !== "desktop" || isMobile || reducedMotion) {
       setBirds([]);
       setPointPopups([]);
       birdsRef.current = [];
@@ -1096,6 +1246,7 @@ function App() {
     gameActive,
     pageIsActive,
     gameOverVisible,
+    reducedMotion,
   ]);
 
   function handleLoadingComplete() {
@@ -1133,8 +1284,8 @@ function App() {
           }`}
         >
           <div
-            className="min-h-[100svh] w-full overflow-hidden bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: `url(${background})` }}
+            className="min-h-[100svh] w-full overflow-hidden bg-desktop"
+            style={{ backgroundColor: "#008080" }}
           >
             <div
               ref={desktopRef}
@@ -1172,33 +1323,32 @@ function App() {
                   }}
                 >
                   {mobileActiveItem ? (
-                    <div className="h-full overflow-hidden border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c3c7cb] shadow-[3px_3px_0_#000]">
-                      <div className="flex h-11 items-center justify-between border-b border-[#c9f0b2] bg-[#0000aa] px-3 text-white">
-                        <div className="min-w-0 flex-1">
-                          <span className="block truncate font-fixedsys text-base tracking-wide">
+                    <div className="win-frame h-full overflow-hidden bg-win-content">
+                      <div className="aero-azure flex h-11 items-center justify-between px-2">
+                        <div className="min-w-0 flex-1 px-1">
+                          <span className="block truncate font-ui text-base font-bold tracking-wide">
                             {mobileActiveItem.title}
                           </span>
                         </div>
 
                         <button
                           type="button"
+                          aria-label="Close app"
                           onClick={(e) => {
                             e.stopPropagation();
                             setMobileActiveApp(null);
                           }}
-                          className="ml-3 shrink-0"
+                          className="aero-orb ml-3 flex h-6 w-6 shrink-0 items-center justify-center active:win-pressed"
                         >
-                          <img
-                            src={xIcon}
-                            alt="Close app"
-                            className="h-6 w-6"
-                          />
+                          <span className="font-ui text-sm font-bold leading-none text-black">
+                            &times;
+                          </span>
                         </button>
                       </div>
 
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className="h-[calc(100%-44px)] overflow-auto bg-[#c3c7cb] p-3 text-sm text-[#24415f]"
+                        className="h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
                       >
                         {mobileActiveItem.content}
                       </div>
@@ -1219,7 +1369,7 @@ function App() {
                             {item.icon}
                           </div>
 
-                          <span className="mt-1 max-w-full break-words font-fixedsys text-[11px] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                          <span className="mt-1 max-w-full break-words font-ui text-[11px] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                             {item.title}
                           </span>
                         </button>
@@ -1258,12 +1408,25 @@ function App() {
                           {item.icon}
                         </div>
 
-                        <span className="max-w-full px-1 font-fixedsys text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
+                        <span className="max-w-full px-1 font-ui text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
                           {item.title}
                         </span>
                       </button>
                     ))}
                   </div>
+
+                  {!hasEverPlayed &&
+                  !gameActive &&
+                  !gameOverVisible &&
+                  birds.length > 0 ? (
+                    <div className="pointer-events-none absolute left-1/2 top-4 z-[38] -translate-x-1/2">
+                      <div className="win-raise bg-win-face px-4 py-2">
+                        <span className="font-ui text-sm font-medium text-win-text">
+                          Try Shooting the Ducks!
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {showDesktopHud ? (
                     <DuckHuntMetrics
@@ -1289,7 +1452,8 @@ function App() {
                       <div
                         key={popup.id}
                         onAnimationEnd={() => removePointPopup(popup.id)}
-                        className="absolute font-fixedsys text-3xl font-bold text-[#fff2c8] drop-shadow-[2px_2px_0_rgba(0,0,0,0.9)]"                        style={{
+                        className="absolute font-fixedsys text-3xl font-bold text-[#fff2c8] drop-shadow-[2px_2px_0_rgba(0,0,0,0.9)]"
+                        style={{
                           left: `${popup.x}px`,
                           top: `${popup.y}px`,
                           animation: "pointPopupFloat 1500ms ease-out forwards",
@@ -1300,81 +1464,240 @@ function App() {
                     ))}
                   </div>
 
-                  {openWindows.map((window) => (
-                    <div
-                      key={window.id}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        bringToFront(window.id);
-                      }}
-                      className="absolute overflow-hidden border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] shadow-[3px_3px_0_#000]"
-                      style={{
-                        left: `${window.x}px`,
-                        top: `${window.y}px`,
-                        width: `${window.width}px`,
-                        height: `${window.height}px`,
-                        zIndex: window.z,
-                      }}
-                    >
+                  {openWindows.map((window) => {
+                    if (window.minimized) return null;
+
+                    const isActive = window.id === topWindowId;
+
+                    return (
                       <div
+                        key={window.id}
                         onMouseDown={(e) => {
                           e.stopPropagation();
-                          startDragging(e, window.id);
+                          bringToFront(window.id);
                         }}
-                        className="flex h-10 cursor-move items-center justify-between border-b border-[#c9f0b2] bg-[#0000aa] px-3 text-white sm:h-12 sm:px-4"
+                        className={`win-frame absolute overflow-hidden bg-win-content transition-shadow duration-150 ${
+                          isActive ? "" : "opacity-95"
+                        }`}
+                        style={{
+                          left: `${window.x}px`,
+                          top: `${window.y}px`,
+                          width: `${window.width}px`,
+                          height: `${window.height}px`,
+                          zIndex: window.z,
+                        }}
                       >
-                        <div className="flex min-w-0 items-center gap-2 bg-[#0000aa]">
-                          <span className="truncate font-fixedsys text-base tracking-wide sm:text-xl">
-                            {window.title}
-                          </span>
+                        <div
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            startDragging(e, window.id);
+                          }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            toggleMaximizeWindow(window.id);
+                          }}
+                          className={`flex h-10 items-center justify-between px-2 sm:h-12 sm:px-2 ${
+                            isActive
+                              ? "aero-titlebar"
+                              : "aero-titlebar-inactive"
+                          } ${
+                            window.maximized ? "cursor-default" : "cursor-move"
+                          }`}
+                        >
+                          <div className="flex min-w-0 items-center gap-2 px-1">
+                            <img
+                              src={WINDOW_ICON_SRC[window.id]}
+                              alt=""
+                              draggable={false}
+                              className="pointer-events-none h-5 w-5 shrink-0 select-none object-contain"
+                            />
+                            <span
+                              className={`truncate font-ui text-base font-bold tracking-wide sm:text-lg ${
+                                isActive ? "text-white" : "text-white/75"
+                              }`}
+                            >
+                              {window.title}
+                            </span>
+                          </div>
+
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button
+                              type="button"
+                              aria-label="Minimize"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                minimizeWindow(window.id);
+                              }}
+                              className="aero-orb flex h-[22px] w-[22px] items-end justify-center pb-1 active:win-pressed"
+                            >
+                              <span className="h-[3px] w-2.5 bg-black" />
+                            </button>
+
+                            <button
+                              type="button"
+                              aria-label={
+                                window.maximized ? "Restore" : "Maximize"
+                              }
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleMaximizeWindow(window.id);
+                              }}
+                              className="aero-orb flex h-[22px] w-[22px] items-center justify-center active:win-pressed"
+                            >
+                              <span className="h-2.5 w-2.5 border border-black border-t-2" />
+                            </button>
+
+                            <button
+                              type="button"
+                              aria-label="Close"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                closeWindow(window.id);
+                              }}
+                              className="aero-orb ml-0.5 flex h-[22px] w-[22px] items-center justify-center active:win-pressed"
+                            >
+                              <span className="font-ui text-sm font-bold leading-none text-black">
+                                &times;
+                              </span>
+                            </button>
+                          </div>
                         </div>
 
-                        <button
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            closeWindow(window.id);
-                          }}
-                          className="cursor-pointer"
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
                         >
-                          <img
-                            src={xIcon}
-                            draggable={false}
-                            alt="Close window"
-                            className="h-6 w-6"
-                          />
-                        </button>
+                          {window.content}
+                        </div>
                       </div>
-
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-[calc(100%-40px)] overflow-auto bg-[#c3c7cb] p-3 text-sm text-[#24415f] sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
-                      >
-                        {window.content}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </>
               )}
 
+              {!isMobile && startMenuOpen ? (
+                <>
+                  <div
+                    className="absolute inset-0 z-[55]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setStartMenuOpen(false);
+                    }}
+                  />
+
+                  <div
+                    className="win-frame absolute left-1.5 z-[60] w-64 overflow-hidden bg-win-content sm:left-2"
+                    style={{ bottom: `${TASKBAR_HEIGHT + 6}px` }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex">
+                      <div
+                        className="flex w-9 shrink-0 items-end justify-center pb-3"
+                        style={{ background: "#000080" }}
+                      >
+                        <span
+                          className="font-ui text-lg font-bold tracking-widest text-white"
+                          style={{
+                            writingMode: "vertical-rl",
+                            transform: "rotate(180deg)",
+                          }}
+                        >
+                          Adrian OS
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 flex-1 py-1">
+                        {desktopItems.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => openStartMenuItem(item)}
+                            className="group flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-win-title"
+                          >
+                            <img
+                              src={WINDOW_ICON_SRC[item.id] || folderIcon}
+                              alt=""
+                              draggable={false}
+                              className="pointer-events-none h-6 w-6 shrink-0 select-none object-contain"
+                            />
+                            <span className="truncate font-ui text-base text-win-text group-hover:text-win-title-text">
+                              {item.title}
+                            </span>
+                          </button>
+                        ))}
+
+                        <div className="mx-2 my-1">
+                          <div className="h-px bg-win-shadow" />
+                          <div className="h-px bg-win-light" />
+                        </div>
+
+                        <a
+                          href="https://github.com/AmDiTosto"
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => setStartMenuOpen(false)}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-win-text hover:bg-win-title hover:text-win-title-text"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-6 w-6 shrink-0"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.12-.3-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.22.7.83.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z" />
+                          </svg>
+                          <span className="font-ui text-base">GitHub</span>
+                        </a>
+
+                        <a
+                          href="https://www.linkedin.com/in/aditosto/"
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => setStartMenuOpen(false)}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-win-text hover:bg-win-title hover:text-win-title-text"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-6 w-6 shrink-0"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z" />
+                          </svg>
+                          <span className="font-ui text-base">LinkedIn</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
               <div
-                className="absolute bottom-0 left-0 right-0 z-50 border-t border-[#dfdfdf] bg-[#c0c0c0]"
+                className="aero-taskbar absolute bottom-0 left-0 right-0 z-50"
                 style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
-                  className="flex items-center justify-between px-1.5 sm:px-2"
+                  className="flex items-center justify-between gap-2 px-2 sm:px-3"
                   style={{ height: `${TASKBAR_HEIGHT}px` }}
                 >
-                  <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                     <button
                       type="button"
+                      aria-label="Start"
                       onClick={() => {
                         if (isMobile) {
                           setMobileActiveApp(null);
+                        } else {
+                          setStartMenuOpen((prev) => !prev);
                         }
                       }}
-                      className="flex h-9 shrink-0 items-center justify-center gap-2 border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black active:border-t-[#404040] active:border-l-[#404040] active:border-r-white active:border-b-white sm:px-3"
+                      className={`aero-start flex h-10 shrink-0 items-center gap-1.5 px-2.5 ${
+                        startMenuOpen ? "win-pressed" : ""
+                      }`}
                     >
                       <img
                         src={windoesIcon}
@@ -1382,28 +1705,48 @@ function App() {
                         alt="Windows icon"
                         className="h-6 w-6 shrink-0 object-contain"
                       />
-                      <span className="font-fixedsys text-base font-bold sm:text-lg">
+                      <span className="font-ui text-lg font-bold text-black">
                         Start
                       </span>
                     </button>
 
-                    <div className="flex h-9 max-w-[140px] items-center justify-center gap-2 overflow-hidden border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-2 text-black sm:max-w-none sm:px-3">
-                      <img
-                        src={computerIcon}
-                        alt="Desktop icon"
-                        draggable={false}
-                        className="pointer-events-none h-6 w-6 shrink-0 select-none object-contain"
-                      />
-                      <span className="truncate font-fixedsys text-sm font-bold sm:text-lg">
-                        My Desktop
-                      </span>
-                    </div>
+                    {!isMobile &&
+                      openWindows.map((w) => {
+                        const active = !w.minimized && topWindowId === w.id;
+
+                        return (
+                          <button
+                            key={w.id}
+                            type="button"
+                            onClick={() => handleTaskbarWindowClick(w.id)}
+                            className={`flex h-9 min-w-0 max-w-[180px] shrink items-center gap-2 px-2 text-black sm:px-3 ${
+                              active ? "win-pressed bg-[#b8b8b8]" : "win-raise"
+                            }`}
+                          >
+                            <img
+                              src={WINDOW_ICON_SRC[w.id]}
+                              alt=""
+                              draggable={false}
+                              className="pointer-events-none h-5 w-5 shrink-0 select-none object-contain"
+                            />
+                            <span
+                              className={`truncate font-ui text-sm sm:text-base ${
+                                active ? "font-bold" : "font-semibold"
+                              }`}
+                            >
+                              {w.title}
+                            </span>
+                          </button>
+                        );
+                      })}
                   </div>
 
-                  <div className="flex h-9 items-center border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-[#c0c0c0] px-2 text-black sm:px-3">
-                    <span className="font-fixedsys text-sm font-bold sm:text-lg">
-                      {formatWindowsTime(currentTime)}
-                    </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className="win-sink flex h-9 items-center bg-win-face px-3 text-black">
+                      <span className="font-ui text-sm font-semibold sm:text-base">
+                        {formatWindowsTime(currentTime)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1411,7 +1754,7 @@ function App() {
           </div>
         </div>
 
-        {appPhase !== "desktop" ? (
+        {appPhase === "loading" || appPhase === "transitioning" ? (
           <div
             className={`absolute inset-0 z-[999] transition-all duration-[1200ms] ease-in-out ${
               appPhase === "transitioning"
