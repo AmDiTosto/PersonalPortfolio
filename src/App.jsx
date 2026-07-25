@@ -4,6 +4,7 @@ import computerIcon from "./assets/desktopIcons/computer_explorer-5.svg";
 import folderIcon from "./assets/desktopIcons/directory_open_file_mydocs-4.svg";
 import emailIcon from "./assets/desktopIcons/outlook_express-4.svg";
 import documentIcon from "./assets/desktopIcons/document-0.svg";
+import terminalIcon from "./assets/desktopIcons/ms_dos_prompt.svg";
 import windoesIcon from "./assets/desktopIcons/windows-0.svg";
 import startupSound from "./assets/sounds/startSound.mp3";
 import blackDuckSprite from "./assets/black_duck_strip.png";
@@ -15,6 +16,7 @@ import Projects from "./pages/Projects";
 import Resume from "./pages/Resume";
 import Contact from "./pages/Contact";
 import SecretVideo from "./pages/SecretVideo";
+import Terminal from "./pages/Terminal";
 import LoadingScreen from "./pages/LoadingScreen";
 import gunshotSound from "./assets/sounds/gunshot.mp3";
 import gameStartSound from "./assets/sounds/start.mp3";
@@ -30,7 +32,28 @@ const WINDOW_ICON_SRC = {
   resume: documentIcon,
   contact: emailIcon,
   secret: folderIcon,
+  terminal: terminalIcon,
 };
+
+function windowIcon(id) {
+  return WINDOW_ICON_SRC[id] ?? documentIcon;
+}
+
+function DocViewer({ content }) {
+  if (!content) {
+    return (
+      <p className="font-ui text-sm italic text-win-muted">
+        (This file is empty.)
+      </p>
+    );
+  }
+
+  return (
+    <pre className="whitespace-pre-wrap break-words font-ui text-sm leading-relaxed text-win-text">
+      {content}
+    </pre>
+  );
+}
 
 function nowMs() {
   return Date.now();
@@ -168,7 +191,9 @@ function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [appPhase, setAppPhase] = useState("loading");
   const [mobileActiveApp, setMobileActiveApp] = useState(null);
+  const [docs, setDocs] = useState({});
   const [dragging, setDragging] = useState(null);
+  const [resizing, setResizing] = useState(null);
   const [birds, setBirds] = useState([]);
   const [pointPopups, setPointPopups] = useState([]);
   const [gameActive, setGameActive] = useState(false);
@@ -178,13 +203,15 @@ function App() {
   const [idleMsLeft, setIdleMsLeft] = useState(GAME_IDLE_MS);
   const [flashMode, setFlashMode] = useState("none");
   const [startMenuOpen, setStartMenuOpen] = useState(false);
-  const [hasEverPlayed, setHasEverPlayed] = useState(false);
+  const [firstBirdHintVisible, setFirstBirdHintVisible] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   const zCounter = useRef(10);
   const openOffset = useRef(0);
   const desktopRef = useRef(null);
   const birdsRef = useRef([]);
+  const duckHintShownRef = useRef(false);
+  const duckHintTimeoutRef = useRef(null);
 
   const gunshotAudioRef = useRef(null);
   const gameStartAudioRef = useRef(null);
@@ -266,6 +293,28 @@ function App() {
         />
       ),
       content: <Resume />,
+    },
+    {
+      id: "terminal",
+      type: "window",
+      title: "Terminal",
+      icon: (
+        <img
+          src={terminalIcon}
+          alt="Terminal"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      content: (
+        <Terminal
+          onLaunch={launchApp}
+          onClose={closeTerminal}
+          docs={docs}
+          onSaveDoc={saveDoc}
+          onDeleteDoc={deleteDoc}
+        />
+      ),
     },
     {
       id: "contact",
@@ -528,6 +577,88 @@ function App() {
     openDesktopItem(item);
   }
 
+  function launchApp(id) {
+    const item = desktopItemMap[id];
+    if (item) openDesktopItem(item);
+  }
+
+  function closeTerminal() {
+    closeWindow("terminal");
+    setMobileActiveApp((current) => (current === "terminal" ? null : current));
+  }
+
+  function saveDoc(name, content) {
+    setDocs((prev) => ({ ...prev, [name]: content }));
+  }
+
+  function deleteDoc(name) {
+    setDocs((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+
+    closeWindow(`doc:${name}`);
+    setMobileActiveApp((current) =>
+      current === `doc:${name}` ? null : current
+    );
+  }
+
+  function openDoc(name) {
+    if (gameActiveRef.current) return;
+
+    if (isMobile) {
+      setMobileActiveApp(`doc:${name}`);
+      return;
+    }
+
+    const id = `doc:${name}`;
+    const size = getResponsiveWindowSize(viewport.width, viewport.height);
+
+    setOpenWindows((prev) => {
+      const content = <DocViewer content={docs[name] ?? ""} />;
+      const existing = prev.find((window) => window.id === id);
+
+      if (existing) {
+        const nextZ = getNextZ();
+        return prev.map((window) =>
+          window.id === id
+            ? { ...window, z: nextZ, minimized: false, content }
+            : window
+        );
+      }
+
+      const offset = openOffset.current * 28;
+      openOffset.current = (openOffset.current + 1) % 6;
+
+      const position = clampWindowPosition(
+        150 + offset,
+        getTopSafeArea() + offset,
+        size.width,
+        size.height,
+        viewport.width,
+        viewport.height
+      );
+
+      return [
+        ...prev,
+        {
+          id,
+          title: name,
+          content,
+          width: size.width,
+          height: size.height,
+          x: position.x,
+          y: position.y,
+          z: getNextZ(),
+          minimized: false,
+          maximized: false,
+          restoreRect: null,
+        },
+      ];
+    });
+  }
+
   function playClonedAudio(audioTargetRef, volume = 1) {
     const audio = audioTargetRef.current;
     if (!audio) return;
@@ -722,12 +853,29 @@ function App() {
 
     gameActiveRef.current = true;
     setGameActive(true);
-    setHasEverPlayed(true);
+    setFirstBirdHintVisible(false);
+    if (duckHintTimeoutRef.current) {
+      window.clearTimeout(duckHintTimeoutRef.current);
+      duckHintTimeoutRef.current = null;
+    }
     setIdleMsLeft(GAME_IDLE_MS);
     syncGameState(0, 0);
     playGameStart();
     triggerFlash("start", 180);
     resetGameSessionTimeout();
+  }
+
+  function maybeShowDuckHint() {
+    if (duckHintShownRef.current) return;
+    if (gameActiveRef.current) return;
+
+    duckHintShownRef.current = true;
+    setFirstBirdHintVisible(true);
+
+    duckHintTimeoutRef.current = window.setTimeout(() => {
+      setFirstBirdHintVisible(false);
+      duckHintTimeoutRef.current = null;
+    }, 4500);
   }
 
   function endGame() {
@@ -796,6 +944,29 @@ function App() {
     });
   }
 
+  function startResizing(e, id) {
+    if (isMobile) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const currentWindow = openWindows.find((window) => window.id === id);
+    if (!currentWindow) return;
+    if (currentWindow.maximized) return;
+
+    bringToFront(id);
+
+    setResizing({
+      id,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startWidth: currentWindow.width,
+      startHeight: currentWindow.height,
+      winX: currentWindow.x,
+      winY: currentWindow.y,
+    });
+  }
+
   function handleBirdAnimationEnd(id, e) {
     if (e.target !== e.currentTarget) return;
 
@@ -854,6 +1025,8 @@ function App() {
         points: birdType.points,
       },
     ]);
+
+    maybeShowDuckHint();
   }
 
   function shootBird(id, e) {
@@ -982,6 +1155,11 @@ function App() {
       clearFlashTimer();
       clearGameOverHold();
       clearIdleCountdownInterval();
+
+      if (duckHintTimeoutRef.current) {
+        window.clearTimeout(duckHintTimeoutRef.current);
+        duckHintTimeoutRef.current = null;
+      }
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -1150,6 +1328,52 @@ function App() {
   }, [dragging, openWindows, viewport, isMobile]);
 
   useEffect(() => {
+    if (!resizing || isMobile) return;
+
+    const MIN_WIDTH = 320;
+    const MIN_HEIGHT = 220;
+
+    function handleResizeMove(e) {
+      const maxWidth = Math.max(MIN_WIDTH, viewport.width - resizing.winX - 12);
+      const maxHeight = Math.max(
+        MIN_HEIGHT,
+        viewport.height - TASKBAR_HEIGHT - resizing.winY - 12
+      );
+
+      const nextWidth = clamp(
+        resizing.startWidth + (e.clientX - resizing.startMouseX),
+        MIN_WIDTH,
+        maxWidth
+      );
+      const nextHeight = clamp(
+        resizing.startHeight + (e.clientY - resizing.startMouseY),
+        MIN_HEIGHT,
+        maxHeight
+      );
+
+      setOpenWindows((prev) =>
+        prev.map((window) =>
+          window.id === resizing.id
+            ? { ...window, width: nextWidth, height: nextHeight }
+            : window
+        )
+      );
+    }
+
+    function handleResizeUp() {
+      setResizing(null);
+    }
+
+    window.addEventListener("mousemove", handleResizeMove);
+    window.addEventListener("mouseup", handleResizeUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleResizeMove);
+      window.removeEventListener("mouseup", handleResizeUp);
+    };
+  }, [resizing, viewport, isMobile]);
+
+  useEffect(() => {
     zCounter.current = openWindows.reduce(
       (max, window) => Math.max(max, window.z),
       10
@@ -1263,9 +1487,19 @@ function App() {
     }, 1200);
   }
 
-  const mobileActiveItem = mobileActiveApp
-    ? desktopItemMap[mobileActiveApp]
-    : null;
+  let mobileActiveItem = null;
+  if (mobileActiveApp) {
+    if (mobileActiveApp.startsWith("doc:")) {
+      const docName = mobileActiveApp.slice(4);
+      mobileActiveItem = {
+        id: mobileActiveApp,
+        title: docName,
+        content: <DocViewer content={docs[docName] ?? ""} />,
+      };
+    } else {
+      mobileActiveItem = desktopItemMap[mobileActiveApp];
+    }
+  }
 
   const showDesktopHud = gameActive || gameOverVisible;
 
@@ -1324,31 +1558,57 @@ function App() {
                 >
                   {mobileActiveItem ? (
                     <div className="win-frame h-full overflow-hidden bg-win-content">
-                      <div className="aero-azure flex h-11 items-center justify-between px-2">
-                        <div className="min-w-0 flex-1 px-1">
-                          <span className="block truncate font-ui text-base font-bold tracking-wide">
-                            {mobileActiveItem.title}
-                          </span>
-                        </div>
+                      {mobileActiveItem.id !== "terminal" ? (
+                        <div className="aero-azure flex h-11 items-center justify-between px-2">
+                          <div className="min-w-0 flex-1 px-1">
+                            <span className="block truncate font-ui text-base font-bold tracking-wide">
+                              {mobileActiveItem.title}
+                            </span>
+                          </div>
 
-                        <button
-                          type="button"
-                          aria-label="Close app"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMobileActiveApp(null);
-                          }}
-                          className="aero-orb ml-3 flex h-6 w-6 shrink-0 items-center justify-center active:win-pressed"
-                        >
-                          <span className="font-ui text-sm font-bold leading-none text-black">
-                            &times;
+                          <button
+                            type="button"
+                            aria-label="Close app"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMobileActiveApp(null);
+                            }}
+                            className="aero-orb ml-3 flex h-6 w-6 shrink-0 items-center justify-center active:win-pressed"
+                          >
+                            <span className="font-ui text-sm font-bold leading-none text-black">
+                              &times;
+                            </span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex h-8 items-center justify-between border-b border-[#166516] bg-[#0a0a0a] px-2">
+                          <span className="font-fixedsys text-xs leading-none text-[#33ff33]/70">
+                            C:\&gt;
                           </span>
-                        </button>
-                      </div>
+
+                          <button
+                            type="button"
+                            aria-label="Close terminal"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMobileActiveApp(null);
+                            }}
+                            className="aero-orb flex h-6 w-6 shrink-0 items-center justify-center active:win-pressed"
+                          >
+                            <span className="font-ui text-sm font-bold leading-none text-black">
+                              &times;
+                            </span>
+                          </button>
+                        </div>
+                      )}
 
                       <div
                         onClick={(e) => e.stopPropagation()}
-                        className="h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
+                        className={
+                          mobileActiveItem.id === "terminal"
+                            ? "h-[calc(100%-32px)] overflow-hidden"
+                            : "h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
+                        }
                       >
                         {mobileActiveItem.content}
                       </div>
@@ -1371,6 +1631,31 @@ function App() {
 
                           <span className="mt-1 max-w-full break-words font-ui text-[11px] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                             {item.title}
+                          </span>
+                        </button>
+                      ))}
+
+                      {Object.keys(docs).map((name) => (
+                        <button
+                          key={`doc:${name}`}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDoc(name);
+                          }}
+                          className="flex min-h-[96px] flex-col items-center justify-start rounded px-1 py-2 text-center active:bg-white/10"
+                        >
+                          <div className="flex h-14 w-full items-center justify-center">
+                            <img
+                              src={documentIcon}
+                              alt={name}
+                              draggable="false"
+                              className="h-12 w-12 object-contain"
+                            />
+                          </div>
+
+                          <span className="mt-1 max-w-full break-words font-ui text-[11px] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                            {name}
                           </span>
                         </button>
                       ))}
@@ -1413,12 +1698,38 @@ function App() {
                         </span>
                       </button>
                     ))}
+
+                    {Object.keys(docs).map((name) => (
+                      <button
+                        key={`doc:${name}`}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDoc(name);
+                        }}
+                        className="flex cursor-pointer flex-col items-center justify-start text-center"
+                        style={{
+                          width: `${desktopIconLayout.itemWidth}px`,
+                          height: `${desktopIconLayout.itemHeight}px`,
+                        }}
+                      >
+                        <div className="flex w-full justify-center py-2">
+                          <img
+                            src={documentIcon}
+                            alt={name}
+                            draggable="false"
+                            className="h-12 w-12 object-contain"
+                          />
+                        </div>
+
+                        <span className="max-w-full break-words px-1 font-ui text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
+                          {name}
+                        </span>
+                      </button>
+                    ))}
                   </div>
 
-                  {!hasEverPlayed &&
-                  !gameActive &&
-                  !gameOverVisible &&
-                  birds.length > 0 ? (
+                  {firstBirdHintVisible && !gameActive && !gameOverVisible ? (
                     <div className="pointer-events-none absolute left-1/2 top-4 z-[38] -translate-x-1/2">
                       <div className="win-raise bg-win-face px-4 py-2">
                         <span className="font-ui text-sm font-medium text-win-text">
@@ -1468,6 +1779,22 @@ function App() {
                     if (window.minimized) return null;
 
                     const isActive = window.id === topWindowId;
+                    const isTerminal = window.id === "terminal";
+                    const isDoc = window.id.startsWith("doc:");
+
+                    const windowContent = isTerminal ? (
+                      <Terminal
+                        onLaunch={launchApp}
+                        onClose={closeTerminal}
+                        docs={docs}
+                        onSaveDoc={saveDoc}
+                        onDeleteDoc={deleteDoc}
+                      />
+                    ) : isDoc ? (
+                      <DocViewer content={docs[window.id.slice(4)] ?? ""} />
+                    ) : (
+                      window.content
+                    );
 
                     return (
                       <div
@@ -1487,6 +1814,7 @@ function App() {
                           zIndex: window.z,
                         }}
                       >
+                        {!isTerminal ? (
                         <div
                           onMouseDown={(e) => {
                             e.stopPropagation();
@@ -1506,7 +1834,7 @@ function App() {
                         >
                           <div className="flex min-w-0 items-center gap-2 px-1">
                             <img
-                              src={WINDOW_ICON_SRC[window.id]}
+                              src={windowIcon(window.id)}
                               alt=""
                               draggable={false}
                               className="pointer-events-none h-5 w-5 shrink-0 select-none object-contain"
@@ -1565,13 +1893,105 @@ function App() {
                             </button>
                           </div>
                         </div>
+                        ) : (
+                          <div
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              startDragging(e, window.id);
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              toggleMaximizeWindow(window.id);
+                            }}
+                            className={`relative flex h-6 shrink-0 items-center border-b border-[#166516] bg-[#0a0a0a] px-1.5 ${
+                              window.maximized ? "cursor-default" : "cursor-move"
+                            }`}
+                          >
+                            <span className="font-fixedsys text-[11px] leading-none text-[#33ff33]/70">
+                              C:\&gt;
+                            </span>
+
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1">
+                              {[0, 1, 2, 3, 4].map((dot) => (
+                                <span
+                                  key={dot}
+                                  className="h-[3px] w-[3px] rounded-full bg-[#33ff33]/35"
+                                />
+                              ))}
+                            </div>
+
+                            <div className="relative z-10 ml-auto flex items-center gap-1">
+                              <button
+                                type="button"
+                                aria-label="Minimize"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  minimizeWindow(window.id);
+                                }}
+                                className="aero-orb flex h-[18px] w-[18px] items-end justify-center pb-[3px] active:win-pressed"
+                              >
+                                <span className="h-[2px] w-2 bg-black" />
+                              </button>
+
+                              <button
+                                type="button"
+                                aria-label={
+                                  window.maximized ? "Restore" : "Maximize"
+                                }
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleMaximizeWindow(window.id);
+                                }}
+                                className="aero-orb flex h-[18px] w-[18px] items-center justify-center active:win-pressed"
+                              >
+                                <span className="h-2 w-2 border border-black border-t-2" />
+                              </button>
+
+                              <button
+                                type="button"
+                                aria-label="Close"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  closeWindow(window.id);
+                                }}
+                                className="aero-orb ml-0.5 flex h-[18px] w-[18px] items-center justify-center active:win-pressed"
+                              >
+                                <span className="font-ui text-xs font-bold leading-none text-black">
+                                  &times;
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          className="h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
+                          className={
+                            isTerminal
+                              ? "h-[calc(100%-24px)] overflow-hidden"
+                              : "h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
+                          }
                         >
-                          {window.content}
+                          {windowContent}
                         </div>
+
+                        {isTerminal && !window.maximized ? (
+                          <div
+                            onMouseDown={(e) => startResizing(e, window.id)}
+                            className="absolute bottom-0 right-0 z-20 h-4 w-4 cursor-nwse-resize"
+                            style={{
+                              background:
+                                "linear-gradient(135deg, transparent 0 54%, rgba(51,255,51,0.55) 54% 61%, transparent 61% 76%, rgba(51,255,51,0.55) 76% 83%, transparent 83%)",
+                            }}
+                            aria-label="Resize terminal"
+                          />
+                        ) : null}
                       </div>
                     );
                   })}
@@ -1724,7 +2144,7 @@ function App() {
                             }`}
                           >
                             <img
-                              src={WINDOW_ICON_SRC[w.id]}
+                              src={windowIcon(w.id)}
                               alt=""
                               draggable={false}
                               className="pointer-events-none h-5 w-5 shrink-0 select-none object-contain"
