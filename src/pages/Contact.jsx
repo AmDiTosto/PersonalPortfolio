@@ -92,19 +92,23 @@ export default function Contact() {
       message: "",
     });
 
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
     setLoading(true);
 
     try {
       await emailjs.send(
-        import.meta.env.VITE_EMAILJS_SERVICE_ID,
-        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+        serviceId,
+        templateId,
         {
           name: formData.name,
           email: formData.email,
           title: formData.title,
           message: formData.message,
         },
-        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+        publicKey
       );
 
       setStatus({
@@ -120,12 +124,13 @@ export default function Contact() {
         message: "",
       });
     } catch (error) {
-      console.error(error);
+      console.error("EmailJS send failed:", error);
 
       setStatus({
         type: "error",
         title: "Delivery Failed",
-        message: "Something went wrong while sending your message.",
+        message:
+          error?.text || "Something went wrong while sending your message.",
       });
     } finally {
       setLoading(false);
@@ -133,17 +138,19 @@ export default function Contact() {
   };
 
   const inputClass = (hasError) =>
-    `w-full px-3 py-2 outline-none border-2 font-fixedsys ${
-      hasError
-        ? "border-[#aa0000] bg-[#fff0f0] text-black"
-        : "border-t-[#808080] border-l-[#808080] border-r-white border-b-white bg-white text-black"
+    `w-full px-3 py-2 outline-none font-ui text-black ${
+      hasError ? "border-2 border-win-red bg-[#fff0f0]" : "win-sink bg-white"
     }`;
 
   return (
-    <div className="w-full max-w-2xl border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#c3c7cb] p-5 shadow-[2px_2px_0_#000]">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+    <div className="win-raise flex min-h-full w-full flex-col bg-win-face p-4 sm:p-6">
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex min-h-0 flex-1 flex-col gap-4"
+      >
         <div>
-          <label className="mb-1 block font-fixedsys text-sm">Name</label>
+          <label className="mb-1 block font-ui text-sm">Name</label>
           <input
             type="text"
             name="name"
@@ -152,14 +159,12 @@ export default function Contact() {
             className={inputClass(!!errors.name)}
           />
           {errors.name && (
-            <p className="mt-1 font-fixedsys text-xs text-[#aa0000]">
-              {errors.name}
-            </p>
+            <p className="mt-1 font-ui text-xs text-win-red">{errors.name}</p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block font-fixedsys text-sm">Email</label>
+          <label className="mb-1 block font-ui text-sm">Email</label>
           <input
             type="text"
             name="email"
@@ -168,14 +173,12 @@ export default function Contact() {
             className={inputClass(!!errors.email)}
           />
           {errors.email && (
-            <p className="mt-1 font-fixedsys text-xs text-[#aa0000]">
-              {errors.email}
-            </p>
+            <p className="mt-1 font-ui text-xs text-win-red">{errors.email}</p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block font-fixedsys text-sm">Subject</label>
+          <label className="mb-1 block font-ui text-sm">Subject</label>
           <input
             type="text"
             name="title"
@@ -184,27 +187,25 @@ export default function Contact() {
             className={inputClass(!!errors.title)}
           />
           {errors.title && (
-            <p className="mt-1 font-fixedsys text-xs text-[#aa0000]">
-              {errors.title}
-            </p>
+            <p className="mt-1 font-ui text-xs text-win-red">{errors.title}</p>
           )}
         </div>
 
-        <div>
-          <label className="mb-1 block font-fixedsys text-sm">Message</label>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <label className="mb-1 block font-ui text-sm">Message</label>
           <textarea
             name="message"
-            rows="6"
             value={formData.message}
             onChange={handleChange}
-            className={inputClass(!!errors.message)}
+            className={`${inputClass(
+              !!errors.message
+            )} min-h-[120px] flex-1 resize-none`}
           />
           {errors.message && (
-            <p className="mt-1 font-fixedsys text-xs text-[#aa0000]">
-              {errors.message}
-            </p>
+            <p className="mt-1 font-ui text-xs text-win-red">{errors.message}</p>
           )}
         </div>
+
         <button
           type="submit"
           disabled={loading}
@@ -215,32 +216,32 @@ export default function Contact() {
               message: "",
             })
           }
-          className="w-fit border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#d9d9d9] px-4 py-2 font-fixedsys cursor-pointer"
+          className="win-btn w-fit cursor-pointer px-5 py-2 font-ui font-bold text-black active:win-pressed disabled:opacity-60"
         >
           {loading ? "Transmitting..." : "Send Message"}
         </button>
       </form>
 
       {status.message && (
-        <div className="mt-6 border-2 border-t-white border-l-white border-r-[#808080] border-b-[#808080] shadow-[2px_2px_0_#000]">
+        <div className="win-raise mt-4 shrink-0 overflow-hidden">
           <div
-            className={`px-3 py-1 font-fixedsys text-white ${
-              status.type === "success" ? "bg-[#008000]" : "bg-[#aa0000]"
+            className={`px-3 py-1.5 font-ui text-sm font-semibold text-white ${
+              status.type === "success" ? "bg-win-green" : "bg-win-red"
             }`}
           >
             {status.title}
           </div>
 
-          <div className="flex items-center gap-3 bg-[#d9d9d9] p-4">
+          <div className="flex items-center gap-3 bg-win-face p-4">
             <div
-              className={`flex h-8 w-8 items-center justify-center border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white font-bold ${
+              className={`win-sink flex h-8 w-8 items-center justify-center font-bold ${
                 status.type === "success" ? "bg-[#b7f3b7]" : "bg-[#f3b7b7]"
               }`}
             >
               {status.type === "success" ? "✓" : "!"}
             </div>
 
-            <p className="font-fixedsys text-sm text-black">{status.message}</p>
+            <p className="font-ui text-sm text-black">{status.message}</p>
           </div>
         </div>
       )}
