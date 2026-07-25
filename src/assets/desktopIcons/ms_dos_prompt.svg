@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- window body -->
+  <rect x="3" y="5" width="26" height="22" fill="#c0c0c0" />
+  <!-- bevel highlight (top/left) -->
+  <path d="M3 5h26v1H4v21H3z" fill="#ffffff" />
+  <!-- bevel shadow (bottom/right) -->
+  <path d="M29 5v22H3v-1h25V5z" fill="#0a0a0a" />
+  <!-- title bar -->
+  <rect x="5" y="7" width="22" height="3" fill="#000080" />
+  <!-- screen bezel (sunken) -->
+  <rect x="5" y="11" width="22" height="14" fill="#808080" />
+  <rect x="6" y="12" width="20" height="12" fill="#000000" />
+  <!-- prompt text -->
+  <text x="7.5" y="20" font-family="'Courier New', monospace" font-size="7" font-weight="bold" fill="#2fff2f">C:\&gt;</text>
+  <!-- cursor block -->
+  <rect x="20.5" y="14.5" width="3.5" height="6" fill="#2fff2f" />
+</svg>
