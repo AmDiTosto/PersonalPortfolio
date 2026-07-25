@@ -43,14 +43,10 @@ export default function Experience() {
   ];
 
   return (
-    <div className="w-full bg-[#c3c7cb] p-3">
-      <div className="flex w-full flex-col gap-3">
-        <div className="flex flex-col gap-4">
-          {workExperinces.map((exp) => (
-            <ExperienceCard exp={exp} />
-          ))}
-        </div>
-      </div>
+    <div className="flex w-full flex-col gap-4">
+      {workExperinces.map((exp) => (
+        <ExperienceCard key={exp.id} exp={exp} />
+      ))}
     </div>
   );
 }
