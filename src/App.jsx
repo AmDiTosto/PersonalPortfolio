@@ -17,6 +17,7 @@ import Resume from "./pages/Resume";
 import Contact from "./pages/Contact";
 import SecretVideo from "./pages/SecretVideo";
 import Terminal from "./pages/Terminal";
+import DocumentsFolder from "./pages/DocumentsFolder";
 import LoadingScreen from "./pages/LoadingScreen";
 import gunshotSound from "./assets/sounds/gunshot.mp3";
 import gameStartSound from "./assets/sounds/start.mp3";
@@ -33,25 +34,224 @@ const WINDOW_ICON_SRC = {
   contact: emailIcon,
   secret: folderIcon,
   terminal: terminalIcon,
+  display: computerIcon,
+  documents: folderIcon,
 };
 
 function windowIcon(id) {
   return WINDOW_ICON_SRC[id] ?? documentIcon;
 }
 
-function DocViewer({ content }) {
-  if (!content) {
-    return (
-      <p className="font-ui text-sm italic text-win-muted">
-        (This file is empty.)
-      </p>
-    );
+function Notepad({ name, content, onSave, onClose, onDelete }) {
+  const [text, setText] = useState(content);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  function save() {
+    onSave(name, text);
+  }
+
+  function handleKeyDown(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      save();
+    }
   }
 
   return (
-    <pre className="whitespace-pre-wrap break-words font-ui text-sm leading-relaxed text-win-text">
-      {content}
-    </pre>
+    <div className="relative flex h-full flex-col bg-win-face">
+      <div className="flex h-7 shrink-0 items-center border-b border-win-shadow px-1">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          className={`px-2 py-0.5 font-ui text-sm ${
+            menuOpen
+              ? "bg-win-title text-win-title-text"
+              : "text-win-text hover:bg-win-title hover:text-win-title-text"
+          }`}
+        >
+          File
+        </button>
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={handleKeyDown}
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        placeholder="Type here, then File > Save (or Ctrl+S)."
+        className="win-sink min-h-0 flex-1 resize-none border-0 bg-white p-2 font-ui text-sm leading-relaxed text-black outline-none placeholder:text-win-muted"
+      />
+
+      {menuOpen ? (
+        <>
+          <div
+            className="absolute inset-0 z-20"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="win-frame absolute left-1 top-7 z-30 w-48 bg-win-face py-1">
+            <button
+              type="button"
+              onClick={() => {
+                save();
+                setMenuOpen(false);
+              }}
+              className="flex w-full items-center justify-between px-3 py-1 font-ui text-sm text-win-text hover:bg-win-title hover:text-win-title-text"
+            >
+              <span>Save</span>
+              <span className="text-win-muted">Ctrl+S</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                save();
+                onClose();
+              }}
+              className="flex w-full items-center px-3 py-1 font-ui text-sm text-win-text hover:bg-win-title hover:text-win-title-text"
+            >
+              Save &amp; Close
+            </button>
+
+            <div className="mx-2 my-1">
+              <div className="h-px bg-win-shadow" />
+              <div className="h-px bg-win-light" />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete(name);
+              }}
+              className="flex w-full items-center px-3 py-1 font-ui text-sm text-win-red hover:bg-win-red hover:text-white"
+            >
+              Delete
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex w-full items-center px-3 py-1 font-ui text-sm text-win-text hover:bg-win-title hover:text-win-title-text"
+            >
+              Close
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+const DESKTOP_THEMES = [
+  { id: "teal", name: "Teal (Default)", background: "#008080" },
+  {
+    id: "clouds",
+    name: "Clouds",
+    background:
+      "linear-gradient(180deg, #5b9bd5 0%, #a9d0f5 55%, #d6ecff 100%)",
+  },
+  { id: "midnight", name: "Midnight", background: "#0a0a1c" },
+  { id: "rainy-day", name: "Rainy Day", background: "#4d6b7a" },
+  { id: "eggplant", name: "Eggplant", background: "#3f2a4d" },
+  { id: "desert", name: "Desert", background: "#b39a63" },
+  { id: "spruce", name: "Spruce", background: "#0b3d2e" },
+  {
+    id: "slate",
+    name: "Slate",
+    background:
+      "repeating-linear-gradient(45deg, #2f3b40 0 10px, #374349 10px 20px)",
+  },
+  {
+    id: "windows",
+    name: "Windows",
+    background: "linear-gradient(135deg, #000080 0%, #1084d0 100%)",
+  },
+];
+
+function MonitorPreview({ background }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="win-raise bg-win-face p-1.5">
+        <div
+          className="win-sink relative overflow-hidden"
+          style={{ width: 148, height: 104, background }}
+        >
+          <div className="absolute inset-x-0 bottom-0 flex h-3 items-center gap-1 bg-win-face px-1">
+            <div className="win-raise h-2 w-5 bg-win-face" />
+          </div>
+        </div>
+      </div>
+      <div className="win-raise h-2 w-16 bg-win-face" />
+      <div className="win-raise h-1.5 w-24 bg-win-face" />
+    </div>
+  );
+}
+
+function DisplayProperties({ themes, current, onApply, onClose }) {
+  const [selected, setSelected] = useState(current);
+  const selectedTheme =
+    themes.find((theme) => theme.id === selected) ?? themes[0];
+
+  return (
+    <div className="flex h-full min-h-full flex-col bg-win-face p-4">
+      <div className="flex justify-center pb-4">
+        <MonitorPreview background={selectedTheme.background} />
+      </div>
+
+      <div className="mb-1 font-ui text-sm text-win-text">Wallpaper</div>
+
+      <div className="win-sink min-h-0 flex-1 overflow-auto bg-white">
+        {themes.map((theme) => {
+          const active = theme.id === selected;
+          return (
+            <button
+              key={theme.id}
+              type="button"
+              onClick={() => setSelected(theme.id)}
+              className={`flex w-full items-center gap-2 px-2 py-1 text-left font-ui text-sm ${
+                active
+                  ? "bg-win-title text-white"
+                  : "text-win-text hover:bg-[#e8e8e8]"
+              }`}
+            >
+              <span
+                className="h-4 w-4 shrink-0 border border-win-shadow"
+                style={{ background: theme.background }}
+              />
+              {theme.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            onApply(selected);
+            onClose();
+          }}
+          className="win-btn min-w-[72px] px-4 py-1 font-ui text-sm font-bold text-black active:win-pressed"
+        >
+          OK
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="win-btn min-w-[72px] px-4 py-1 font-ui text-sm text-black active:win-pressed"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => onApply(selected)}
+          className="win-btn min-w-[72px] px-4 py-1 font-ui text-sm text-black active:win-pressed"
+        >
+          Apply
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -128,7 +328,7 @@ function App() {
     const maxAllowedWidth = Math.max(220, viewportWidth - 24);
     const maxAllowedHeight = Math.max(
       200,
-      viewportHeight - TASKBAR_HEIGHT - 24
+      viewportHeight - TASKBAR_HEIGHT - 24,
     );
 
     let targetWidth = 700;
@@ -151,7 +351,7 @@ function App() {
     width,
     height,
     viewportWidth,
-    viewportHeight
+    viewportHeight,
   ) {
     const minX = 12;
     const minY = getTopSafeArea();
@@ -179,11 +379,11 @@ function App() {
   const [viewport, setViewport] = useState(() =>
     typeof window === "undefined"
       ? { width: 1440, height: 900 }
-      : getViewportSize()
+      : getViewportSize(),
   );
 
   const [pageIsActive, setPageIsActive] = useState(() =>
-    typeof document === "undefined" ? true : getPageIsActive()
+    typeof document === "undefined" ? true : getPageIsActive(),
   );
 
   const isMobile = viewport.width < MOBILE_BREAKPOINT;
@@ -192,6 +392,8 @@ function App() {
   const [appPhase, setAppPhase] = useState("loading");
   const [mobileActiveApp, setMobileActiveApp] = useState(null);
   const [docs, setDocs] = useState({});
+  const [desktopTheme, setDesktopTheme] = useState("teal");
+  const [contextMenu, setContextMenu] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [resizing, setResizing] = useState(null);
   const [birds, setBirds] = useState([]);
@@ -212,6 +414,7 @@ function App() {
   const birdsRef = useRef([]);
   const duckHintShownRef = useRef(false);
   const duckHintTimeoutRef = useRef(null);
+  const longPressTimerRef = useRef(null);
 
   const gunshotAudioRef = useRef(null);
   const gameStartAudioRef = useRef(null);
@@ -333,7 +536,7 @@ function App() {
     {
       id: "secret",
       type: "window",
-      title: "Adrian SECRET folder",
+      title: "Adrian SECRET Folder",
       icon: (
         <img
           src={folderIcon}
@@ -344,12 +547,34 @@ function App() {
       ),
       content: <SecretVideo />,
     },
+    {
+      id: "documents",
+      type: "window",
+      title: "My Documents",
+      icon: (
+        <img
+          src={folderIcon}
+          alt="My Documents"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      content: (
+        <DocumentsFolder
+          docs={docs}
+          onOpenDoc={openDoc}
+          onDelete={deleteDoc}
+          onCreate={createDoc}
+          onRename={renameDoc}
+        />
+      ),
+    },
   ];
 
   const desktopItemMap = Object.fromEntries(
     desktopItems
       .filter((item) => item.type === "window")
-      .map((item) => [item.id, item])
+      .map((item) => [item.id, item]),
   );
 
   function getInitialWindows() {
@@ -364,7 +589,7 @@ function App() {
       size.width,
       size.height,
       window.innerWidth,
-      window.innerHeight
+      window.innerHeight,
     );
 
     return [
@@ -396,8 +621,8 @@ function App() {
 
     setOpenWindows((prev) =>
       prev.map((window) =>
-        window.id === id ? { ...window, z: nextZ } : window
-      )
+        window.id === id ? { ...window, z: nextZ } : window,
+      ),
     );
   }
 
@@ -441,7 +666,7 @@ function App() {
         return prev.map((window) =>
           window.id === item.id
             ? { ...window, z: nextZ, minimized: false }
-            : window
+            : window,
         );
       }
 
@@ -454,7 +679,7 @@ function App() {
         size.width,
         size.height,
         viewport.width,
-        viewport.height
+        viewport.height,
       );
 
       return [
@@ -492,8 +717,8 @@ function App() {
   function minimizeWindow(id) {
     setOpenWindows((prev) =>
       prev.map((window) =>
-        window.id === id ? { ...window, minimized: true } : window
-      )
+        window.id === id ? { ...window, minimized: true } : window,
+      ),
     );
   }
 
@@ -531,7 +756,7 @@ function App() {
           },
           ...maxRect,
         };
-      })
+      }),
     );
   }
 
@@ -558,8 +783,8 @@ function App() {
       const nextZ = getNextZ();
       setOpenWindows((prev) =>
         prev.map((window) =>
-          window.id === id ? { ...window, minimized: false, z: nextZ } : window
-        )
+          window.id === id ? { ...window, minimized: false, z: nextZ } : window,
+        ),
       );
       return;
     }
@@ -600,7 +825,43 @@ function App() {
 
     closeWindow(`doc:${name}`);
     setMobileActiveApp((current) =>
-      current === `doc:${name}` ? null : current
+      current === `doc:${name}` ? null : current,
+    );
+  }
+
+  function createDoc(rawName) {
+    const trimmed = rawName.trim().toLowerCase();
+    if (!trimmed) return;
+
+    const name = trimmed.includes(".") ? trimmed : `${trimmed}.txt`;
+    setDocs((prev) => (name in prev ? prev : { ...prev, [name]: "" }));
+  }
+
+  function renameDoc(oldName, rawNewName) {
+    const trimmed = rawNewName.trim().toLowerCase();
+    if (!trimmed) return;
+
+    const newName = trimmed.includes(".") ? trimmed : `${trimmed}.txt`;
+    if (newName === oldName) return;
+
+    setDocs((prev) => {
+      if (!(oldName in prev) || newName in prev) return prev;
+      const next = {};
+      for (const key of Object.keys(prev)) {
+        next[key === oldName ? newName : key] = prev[key];
+      }
+      return next;
+    });
+
+    setOpenWindows((prev) =>
+      prev.map((window) =>
+        window.id === `doc:${oldName}`
+          ? { ...window, id: `doc:${newName}`, title: newName }
+          : window,
+      ),
+    );
+    setMobileActiveApp((current) =>
+      current === `doc:${oldName}` ? `doc:${newName}` : current,
     );
   }
 
@@ -616,15 +877,12 @@ function App() {
     const size = getResponsiveWindowSize(viewport.width, viewport.height);
 
     setOpenWindows((prev) => {
-      const content = <DocViewer content={docs[name] ?? ""} />;
       const existing = prev.find((window) => window.id === id);
 
       if (existing) {
         const nextZ = getNextZ();
         return prev.map((window) =>
-          window.id === id
-            ? { ...window, z: nextZ, minimized: false, content }
-            : window
+          window.id === id ? { ...window, z: nextZ, minimized: false } : window,
         );
       }
 
@@ -637,7 +895,7 @@ function App() {
         size.width,
         size.height,
         viewport.width,
-        viewport.height
+        viewport.height,
       );
 
       return [
@@ -645,7 +903,7 @@ function App() {
         {
           id,
           title: name,
-          content,
+          content: null,
           width: size.width,
           height: size.height,
           x: position.x,
@@ -657,6 +915,108 @@ function App() {
         },
       ];
     });
+  }
+
+  function openDisplayProperties() {
+    setContextMenu(null);
+
+    if (gameActiveRef.current) return;
+
+    if (isMobile) {
+      setMobileActiveApp("display");
+      return;
+    }
+
+    const id = "display";
+    const width = Math.min(420, Math.max(300, viewport.width - 24));
+    const height = Math.min(
+      470,
+      Math.max(320, viewport.height - TASKBAR_HEIGHT - 24),
+    );
+
+    setOpenWindows((prev) => {
+      const existing = prev.find((window) => window.id === id);
+
+      if (existing) {
+        const nextZ = getNextZ();
+        return prev.map((window) =>
+          window.id === id ? { ...window, z: nextZ, minimized: false } : window,
+        );
+      }
+
+      const offset = openOffset.current * 28;
+      openOffset.current = (openOffset.current + 1) % 6;
+
+      const position = clampWindowPosition(
+        180 + offset,
+        getTopSafeArea() + offset,
+        width,
+        height,
+        viewport.width,
+        viewport.height,
+      );
+
+      return [
+        ...prev,
+        {
+          id,
+          title: "Display Properties",
+          content: null,
+          width,
+          height,
+          x: position.x,
+          y: position.y,
+          z: getNextZ(),
+          minimized: false,
+          maximized: false,
+          restoreRect: null,
+        },
+      ];
+    });
+  }
+
+  function closeDisplayProperties() {
+    closeWindow("display");
+    setMobileActiveApp((current) => (current === "display" ? null : current));
+  }
+
+  function handleDesktopContextMenu(e) {
+    if (isMobile) return;
+
+    e.preventDefault();
+
+    if (
+      e.target.closest(".win-frame") ||
+      e.target.closest(".aero-taskbar") ||
+      gameActiveRef.current
+    ) {
+      return;
+    }
+
+    const menuWidth = 176;
+    const menuHeight = 88;
+
+    setContextMenu({
+      x: Math.min(e.clientX, viewport.width - menuWidth - 8),
+      y: Math.min(e.clientY, viewport.height - TASKBAR_HEIGHT - menuHeight - 8),
+    });
+  }
+
+  function clearLongPress() {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  function handleHomeTouchStart(e) {
+    if (mobileActiveApp) return;
+    if (e.target.closest("button")) return;
+
+    clearLongPress();
+    longPressTimerRef.current = window.setTimeout(() => {
+      openDisplayProperties();
+    }, 500);
   }
 
   function playClonedAudio(audioTargetRef, volume = 1) {
@@ -995,7 +1355,7 @@ function App() {
     const minTop = 96;
     const maxTop = Math.max(
       minTop,
-      viewport.height - TASKBAR_HEIGHT - size - 24
+      viewport.height - TASKBAR_HEIGHT - size - 24,
     );
 
     const top = Math.floor(Math.random() * (maxTop - minTop + 1)) + minTop;
@@ -1054,7 +1414,7 @@ function App() {
           frozenX: birdRect.left - desktopRect.left,
           frozenY: birdRect.top - desktopRect.top,
         };
-      })
+      }),
     );
 
     if (!didShoot) return;
@@ -1104,10 +1464,14 @@ function App() {
 
   const desktopIconLayout = getDesktopIconLayout(
     viewport.width,
-    viewport.height
+    viewport.height,
   );
 
   const topWindowId = getTopWindowId();
+
+  const currentTheme =
+    DESKTOP_THEMES.find((theme) => theme.id === desktopTheme) ??
+    DESKTOP_THEMES[0];
 
   const desktopGameCursor =
     !isMobile && appPhase === "desktop" && gameActive && !gameOverVisible
@@ -1247,7 +1611,7 @@ function App() {
 
       const nextSize = getResponsiveWindowSize(
         nextViewport.width,
-        nextViewport.height
+        nextViewport.height,
       );
 
       setOpenWindows((prev) =>
@@ -1268,7 +1632,7 @@ function App() {
             nextSize.width,
             nextSize.height,
             nextViewport.width,
-            nextViewport.height
+            nextViewport.height,
           );
 
           return {
@@ -1278,7 +1642,7 @@ function App() {
             x: nextPosition.x,
             y: nextPosition.y,
           };
-        })
+        }),
       );
     }
 
@@ -1291,7 +1655,7 @@ function App() {
       if (!dragging || isMobile) return;
 
       const activeWindow = openWindows.find(
-        (window) => window.id === dragging.id
+        (window) => window.id === dragging.id,
       );
 
       if (!activeWindow) return;
@@ -1302,15 +1666,15 @@ function App() {
         activeWindow.width,
         activeWindow.height,
         viewport.width,
-        viewport.height
+        viewport.height,
       );
 
       setOpenWindows((prev) =>
         prev.map((window) =>
           window.id === dragging.id
             ? { ...window, x: nextPosition.x, y: nextPosition.y }
-            : window
-        )
+            : window,
+        ),
       );
     }
 
@@ -1337,26 +1701,26 @@ function App() {
       const maxWidth = Math.max(MIN_WIDTH, viewport.width - resizing.winX - 12);
       const maxHeight = Math.max(
         MIN_HEIGHT,
-        viewport.height - TASKBAR_HEIGHT - resizing.winY - 12
+        viewport.height - TASKBAR_HEIGHT - resizing.winY - 12,
       );
 
       const nextWidth = clamp(
         resizing.startWidth + (e.clientX - resizing.startMouseX),
         MIN_WIDTH,
-        maxWidth
+        maxWidth,
       );
       const nextHeight = clamp(
         resizing.startHeight + (e.clientY - resizing.startMouseY),
         MIN_HEIGHT,
-        maxHeight
+        maxHeight,
       );
 
       setOpenWindows((prev) =>
         prev.map((window) =>
           window.id === resizing.id
             ? { ...window, width: nextWidth, height: nextHeight }
-            : window
-        )
+            : window,
+        ),
       );
     }
 
@@ -1376,7 +1740,7 @@ function App() {
   useEffect(() => {
     zCounter.current = openWindows.reduce(
       (max, window) => Math.max(max, window.z),
-      10
+      10,
     );
   }, [openWindows]);
 
@@ -1443,12 +1807,15 @@ function App() {
         ) {
           clearSecondaryBirdSpawnTimer();
 
-          secondaryBirdSpawnTimeoutRef.current = window.setTimeout(() => {
-            if (!pageIsActiveRef.current) return;
-            if (gameOverVisibleRef.current) return;
+          secondaryBirdSpawnTimeoutRef.current = window.setTimeout(
+            () => {
+              if (!pageIsActiveRef.current) return;
+              if (gameOverVisibleRef.current) return;
 
-            spawnBird();
-          }, 180 + Math.random() * 240);
+              spawnBird();
+            },
+            180 + Math.random() * 240,
+          );
         }
 
         if (!gameOverVisibleRef.current && pageIsActiveRef.current) {
@@ -1494,7 +1861,28 @@ function App() {
       mobileActiveItem = {
         id: mobileActiveApp,
         title: docName,
-        content: <DocViewer content={docs[docName] ?? ""} />,
+        content: (
+          <Notepad
+            name={docName}
+            content={docs[docName] ?? ""}
+            onSave={saveDoc}
+            onClose={() => setMobileActiveApp(null)}
+            onDelete={deleteDoc}
+          />
+        ),
+      };
+    } else if (mobileActiveApp === "display") {
+      mobileActiveItem = {
+        id: "display",
+        title: "Display Properties",
+        content: (
+          <DisplayProperties
+            themes={DESKTOP_THEMES}
+            current={desktopTheme}
+            onApply={setDesktopTheme}
+            onClose={closeDisplayProperties}
+          />
+        ),
       };
     } else {
       mobileActiveItem = desktopItemMap[mobileActiveApp];
@@ -1519,11 +1907,12 @@ function App() {
         >
           <div
             className="min-h-[100svh] w-full overflow-hidden bg-desktop"
-            style={{ backgroundColor: "#008080" }}
+            style={{ background: currentTheme.background }}
           >
             <div
               ref={desktopRef}
               onClick={handleDesktopClick}
+              onContextMenu={handleDesktopContextMenu}
               className="relative w-full select-none"
               style={{
                 height: "100dvh",
@@ -1541,8 +1930,8 @@ function App() {
                       flashMode === "start"
                         ? "rgba(255,255,255,0.06)"
                         : flashMode === "miss"
-                        ? "rgba(255, 80, 80, 0.22)"
-                        : "rgba(255,120,80,0.08)",
+                          ? "rgba(255, 80, 80, 0.22)"
+                          : "rgba(255,120,80,0.08)",
                   }}
                 />
               ) : null}
@@ -1550,6 +1939,10 @@ function App() {
               {isMobile ? (
                 <div
                   className="h-full w-full px-3 pt-3"
+                  onTouchStart={handleHomeTouchStart}
+                  onTouchEnd={clearLongPress}
+                  onTouchMove={clearLongPress}
+                  onContextMenu={(e) => e.preventDefault()}
                   style={{
                     paddingBottom: `calc(${
                       TASKBAR_HEIGHT + 16
@@ -1607,7 +2000,11 @@ function App() {
                         className={
                           mobileActiveItem.id === "terminal"
                             ? "h-[calc(100%-32px)] overflow-hidden"
-                            : "h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
+                            : mobileActiveItem.id.startsWith("doc:")
+                              ? "h-[calc(100%-44px)] overflow-hidden"
+                              : mobileActiveItem.id === "display"
+                                ? "h-[calc(100%-44px)] overflow-auto"
+                                : "h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
                         }
                       >
                         {mobileActiveItem.content}
@@ -1631,31 +2028,6 @@ function App() {
 
                           <span className="mt-1 max-w-full break-words font-ui text-[11px] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                             {item.title}
-                          </span>
-                        </button>
-                      ))}
-
-                      {Object.keys(docs).map((name) => (
-                        <button
-                          key={`doc:${name}`}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDoc(name);
-                          }}
-                          className="flex min-h-[96px] flex-col items-center justify-start rounded px-1 py-2 text-center active:bg-white/10"
-                        >
-                          <div className="flex h-14 w-full items-center justify-center">
-                            <img
-                              src={documentIcon}
-                              alt={name}
-                              draggable="false"
-                              className="h-12 w-12 object-contain"
-                            />
-                          </div>
-
-                          <span className="mt-1 max-w-full break-words font-ui text-[11px] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                            {name}
                           </span>
                         </button>
                       ))}
@@ -1695,35 +2067,6 @@ function App() {
 
                         <span className="max-w-full px-1 font-ui text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
                           {item.title}
-                        </span>
-                      </button>
-                    ))}
-
-                    {Object.keys(docs).map((name) => (
-                      <button
-                        key={`doc:${name}`}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDoc(name);
-                        }}
-                        className="flex cursor-pointer flex-col items-center justify-start text-center"
-                        style={{
-                          width: `${desktopIconLayout.itemWidth}px`,
-                          height: `${desktopIconLayout.itemHeight}px`,
-                        }}
-                      >
-                        <div className="flex w-full justify-center py-2">
-                          <img
-                            src={documentIcon}
-                            alt={name}
-                            draggable="false"
-                            className="h-12 w-12 object-contain"
-                          />
-                        </div>
-
-                        <span className="max-w-full break-words px-1 font-ui text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
-                          {name}
                         </span>
                       </button>
                     ))}
@@ -1781,6 +2124,8 @@ function App() {
                     const isActive = window.id === topWindowId;
                     const isTerminal = window.id === "terminal";
                     const isDoc = window.id.startsWith("doc:");
+                    const isDisplay = window.id === "display";
+                    const isDocuments = window.id === "documents";
 
                     const windowContent = isTerminal ? (
                       <Terminal
@@ -1791,7 +2136,28 @@ function App() {
                         onDeleteDoc={deleteDoc}
                       />
                     ) : isDoc ? (
-                      <DocViewer content={docs[window.id.slice(4)] ?? ""} />
+                      <Notepad
+                        name={window.id.slice(4)}
+                        content={docs[window.id.slice(4)] ?? ""}
+                        onSave={saveDoc}
+                        onClose={() => closeWindow(window.id)}
+                        onDelete={deleteDoc}
+                      />
+                    ) : isDocuments ? (
+                      <DocumentsFolder
+                        docs={docs}
+                        onOpenDoc={openDoc}
+                        onDelete={deleteDoc}
+                        onCreate={createDoc}
+                        onRename={renameDoc}
+                      />
+                    ) : isDisplay ? (
+                      <DisplayProperties
+                        themes={DESKTOP_THEMES}
+                        current={desktopTheme}
+                        onApply={setDesktopTheme}
+                        onClose={closeDisplayProperties}
+                      />
                     ) : (
                       window.content
                     );
@@ -1815,84 +2181,86 @@ function App() {
                         }}
                       >
                         {!isTerminal ? (
-                        <div
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            startDragging(e, window.id);
-                          }}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            toggleMaximizeWindow(window.id);
-                          }}
-                          className={`flex h-10 items-center justify-between px-2 sm:h-12 sm:px-2 ${
-                            isActive
-                              ? "aero-titlebar"
-                              : "aero-titlebar-inactive"
-                          } ${
-                            window.maximized ? "cursor-default" : "cursor-move"
-                          }`}
-                        >
-                          <div className="flex min-w-0 items-center gap-2 px-1">
-                            <img
-                              src={windowIcon(window.id)}
-                              alt=""
-                              draggable={false}
-                              className="pointer-events-none h-5 w-5 shrink-0 select-none object-contain"
-                            />
-                            <span
-                              className={`truncate font-ui text-base font-bold tracking-wide sm:text-lg ${
-                                isActive ? "text-white" : "text-white/75"
-                              }`}
-                            >
-                              {window.title}
-                            </span>
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-1">
-                            <button
-                              type="button"
-                              aria-label="Minimize"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                minimizeWindow(window.id);
-                              }}
-                              className="aero-orb flex h-[22px] w-[22px] items-end justify-center pb-1 active:win-pressed"
-                            >
-                              <span className="h-[3px] w-2.5 bg-black" />
-                            </button>
-
-                            <button
-                              type="button"
-                              aria-label={
-                                window.maximized ? "Restore" : "Maximize"
-                              }
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleMaximizeWindow(window.id);
-                              }}
-                              className="aero-orb flex h-[22px] w-[22px] items-center justify-center active:win-pressed"
-                            >
-                              <span className="h-2.5 w-2.5 border border-black border-t-2" />
-                            </button>
-
-                            <button
-                              type="button"
-                              aria-label="Close"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                closeWindow(window.id);
-                              }}
-                              className="aero-orb ml-0.5 flex h-[22px] w-[22px] items-center justify-center active:win-pressed"
-                            >
-                              <span className="font-ui text-sm font-bold leading-none text-black">
-                                &times;
+                          <div
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              startDragging(e, window.id);
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              toggleMaximizeWindow(window.id);
+                            }}
+                            className={`flex h-10 items-center justify-between px-2 sm:h-12 sm:px-2 ${
+                              isActive
+                                ? "aero-titlebar"
+                                : "aero-titlebar-inactive"
+                            } ${
+                              window.maximized
+                                ? "cursor-default"
+                                : "cursor-move"
+                            }`}
+                          >
+                            <div className="flex min-w-0 items-center gap-2 px-1">
+                              <img
+                                src={windowIcon(window.id)}
+                                alt=""
+                                draggable={false}
+                                className="pointer-events-none h-5 w-5 shrink-0 select-none object-contain"
+                              />
+                              <span
+                                className={`truncate font-ui text-base font-bold tracking-wide sm:text-lg ${
+                                  isActive ? "text-white" : "text-white/75"
+                                }`}
+                              >
+                                {window.title}
                               </span>
-                            </button>
+                            </div>
+
+                            <div className="flex shrink-0 items-center gap-1">
+                              <button
+                                type="button"
+                                aria-label="Minimize"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  minimizeWindow(window.id);
+                                }}
+                                className="aero-orb flex h-[22px] w-[22px] items-end justify-center pb-1 active:win-pressed"
+                              >
+                                <span className="h-[3px] w-2.5 bg-black" />
+                              </button>
+
+                              <button
+                                type="button"
+                                aria-label={
+                                  window.maximized ? "Restore" : "Maximize"
+                                }
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleMaximizeWindow(window.id);
+                                }}
+                                className="aero-orb flex h-[22px] w-[22px] items-center justify-center active:win-pressed"
+                              >
+                                <span className="h-2.5 w-2.5 border border-black border-t-2" />
+                              </button>
+
+                              <button
+                                type="button"
+                                aria-label="Close"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  closeWindow(window.id);
+                                }}
+                                className="aero-orb ml-0.5 flex h-[22px] w-[22px] items-center justify-center active:win-pressed"
+                              >
+                                <span className="font-ui text-sm font-bold leading-none text-black">
+                                  &times;
+                                </span>
+                              </button>
+                            </div>
                           </div>
-                        </div>
                         ) : (
                           <div
                             onMouseDown={(e) => {
@@ -1904,7 +2272,9 @@ function App() {
                               toggleMaximizeWindow(window.id);
                             }}
                             className={`relative flex h-6 shrink-0 items-center border-b border-[#166516] bg-[#0a0a0a] px-1.5 ${
-                              window.maximized ? "cursor-default" : "cursor-move"
+                              window.maximized
+                                ? "cursor-default"
+                                : "cursor-move"
                             }`}
                           >
                             <span className="font-fixedsys text-[11px] leading-none text-[#33ff33]/70">
@@ -1975,7 +2345,11 @@ function App() {
                           className={
                             isTerminal
                               ? "h-[calc(100%-24px)] overflow-hidden"
-                              : "h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
+                              : isDoc
+                                ? "h-[calc(100%-40px)] overflow-hidden sm:h-[calc(100%-48px)]"
+                                : isDisplay
+                                  ? "h-[calc(100%-40px)] overflow-auto sm:h-[calc(100%-48px)]"
+                                  : "h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
                           }
                         >
                           {windowContent}
@@ -1997,6 +2371,52 @@ function App() {
                   })}
                 </>
               )}
+
+              {!isMobile && contextMenu ? (
+                <>
+                  <div
+                    className="absolute inset-0 z-[65]"
+                    onClick={() => setContextMenu(null)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setContextMenu(null);
+                    }}
+                  />
+
+                  <div
+                    className="win-frame absolute z-[70] w-44 bg-win-face py-1"
+                    style={{
+                      left: `${contextMenu.x}px`,
+                      top: `${contextMenu.y}px`,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContextMenu(null);
+                        startGameSession();
+                      }}
+                      className="flex w-full items-center px-4 py-1 text-left font-ui text-sm text-win-text hover:bg-win-title hover:text-win-title-text"
+                    >
+                      Play Duck Hunt
+                    </button>
+
+                    <div className="mx-2 my-1">
+                      <div className="h-px bg-win-shadow" />
+                      <div className="h-px bg-win-light" />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={openDisplayProperties}
+                      className="flex w-full items-center px-4 py-1 text-left font-ui text-sm text-win-text hover:bg-win-title hover:text-win-title-text"
+                    >
+                      Properties
+                    </button>
+                  </div>
+                </>
+              ) : null}
 
               {!isMobile && startMenuOpen ? (
                 <>
