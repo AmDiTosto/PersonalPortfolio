@@ -135,7 +135,6 @@ const COMMANDS = [
   ["projects", "Featured projects"],
   ["resume", "Open my resume"],
   ["contact", "How to reach me"],
-  ["socials", "GitHub, LinkedIn & email"],
   ["open <app>", "Launch an app (e.g. open projects)"],
   ["neofetch", "System info"],
   ["date", "Current date & time"],
@@ -160,7 +159,6 @@ const COMMAND_NAMES = [
   "resume",
   "rm",
   "skills",
-  "socials",
   "whoami",
 ];
 
@@ -522,20 +520,6 @@ export default function Terminal({
                 Or run <span className="text-[#2fff2f]">open contact</span> to
                 send a message.
               </Muted>
-            </div>
-          ),
-        };
-
-      case "socials":
-      case "links":
-        return {
-          node: (
-            <div className="flex flex-col gap-0.5">
-              {SOCIALS.map((s) => (
-                <div key={s.href}>
-                  {s.label}: <TermLink href={s.href}>{s.href}</TermLink>
-                </div>
-              ))}
             </div>
           ),
         };
