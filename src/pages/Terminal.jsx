@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-const PROMPT = "C:\\Users\\Adrian>";
+const HOME_PATH = "C:\\Users\\Adrian";
+const DOCS_PATH = "C:\\Users\\Adrian\\My Documents";
+const HOME_PROMPT = `${HOME_PATH}>`;
+const DOCS_PROMPT = `${DOCS_PATH}>`;
+const DOCS_DIR_ALIASES = ["mydocuments", "documents", "docs"];
 
 const FONT_PX = 15;
 
@@ -127,15 +131,17 @@ const SOCIALS = [
 const COMMANDS = [
   ["help", "Show this help menu"],
   ["whoami", "Who is Adrian?"],
-  ["ls", "List desktop apps & your docs"],
-  ["edit <file>", "Create / edit a text doc"],
-  ["rm <file>", "Delete a text doc"],
+  ["ls", "List the current directory"],
+  ["cd <dir>", 'Change directory (cd "My Documents")'],
+  ["touch <file>", "Create an empty file (in My Documents)"],
+  ["nano <file>", "Edit a file in the terminal (in My Documents)"],
+  ["open <name>", "Open an app, or a doc in My Documents"],
+  ["rm <file>", "Delete a file (in My Documents)"],
   ["skills", "Languages, frameworks & tools"],
   ["experience", "Work history"],
   ["projects", "Featured projects"],
   ["resume", "Open my resume"],
   ["contact", "How to reach me"],
-  ["open <app>", "Launch an app (e.g. open projects)"],
   ["neofetch", "System info"],
   ["date", "Current date & time"],
   ["clear", "Clear the screen"],
@@ -143,6 +149,7 @@ const COMMANDS = [
 
 const COMMAND_NAMES = [
   "about",
+  "cd",
   "clear",
   "contact",
   "date",
@@ -153,17 +160,20 @@ const COMMAND_NAMES = [
   "help",
   "linkedin",
   "ls",
+  "nano",
   "neofetch",
   "open",
   "projects",
   "resume",
   "rm",
   "skills",
+  "touch",
+  "vim",
   "whoami",
 ];
 
 function resolveDocName(raw) {
-  const name = raw.trim().toLowerCase();
+  const name = raw.trim().replace(/^["']|["']$/g, "").toLowerCase();
   if (!name) return "";
   return name.includes(".") ? name : `${name}.txt`;
 }
@@ -217,6 +227,7 @@ function TechRow({ items }) {
 export default function Terminal({
   onLaunch,
   onClose,
+  onOpenDoc,
   docs = {},
   onSaveDoc,
   onDeleteDoc,
@@ -239,6 +250,10 @@ export default function Terminal({
   const [input, setInput] = useState("");
   const [focused, setFocused] = useState(true);
   const [editor, setEditor] = useState(null);
+  const [cwd, setCwd] = useState("home");
+
+  const inDocuments = cwd === "documents";
+  const prompt = inDocuments ? DOCS_PROMPT : HOME_PROMPT;
 
   const screenRef = useRef(null);
   const inputRef = useRef(null);
@@ -364,44 +379,127 @@ export default function Terminal({
 
       case "ls":
       case "dir": {
-        const docNames = Object.keys(docs).sort();
+        if (inDocuments) {
+          const docNames = Object.keys(docs).sort();
+          if (docNames.length === 0) {
+            return {
+              node: (
+                <Muted>
+                  Directory is empty. Use{" "}
+                  <span className="text-[#2fff2f]">touch &lt;name&gt;</span> or{" "}
+                  <span className="text-[#2fff2f]">nano &lt;name&gt;</span> to
+                  create a file.
+                </Muted>
+              ),
+            };
+          }
+          return {
+            node: (
+              <div className="flex flex-wrap gap-x-6 gap-y-0.5">
+                {docNames.map((name) => (
+                  <span key={name} className="text-[#5ad1ff]">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ),
+          };
+        }
+
         return {
           node: (
             <div>
               <div className="grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-2">
+                <span className="text-[#ffcf5a]">&lt;DIR&gt; My Documents</span>
                 {APP_TITLES.map((title) => (
                   <span key={title}>{title}</span>
                 ))}
               </div>
 
-              {docNames.length > 0 ? (
-                <div className="mt-1 flex flex-wrap gap-x-6 gap-y-0.5">
-                  {docNames.map((name) => (
-                    <span key={name} className="text-[#5ad1ff]">
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
               <div className="mt-2">
                 <Muted>Use </Muted>
-                <span className="text-[#2fff2f]">open &lt;name&gt;</span>
-                <Muted> to launch an app, or </Muted>
-                <span className="text-[#2fff2f]">edit &lt;name&gt;</span>
-                <Muted> to write a doc.</Muted>
+                <span className="text-[#2fff2f]">open &lt;app&gt;</span>
+                <Muted>, or </Muted>
+                <span className="text-[#2fff2f]">cd &quot;My Documents&quot;</span>
+                <Muted> to reach your files.</Muted>
               </div>
             </div>
           ),
         };
       }
 
+      case "cd": {
+        const target = arg.trim().replace(/^["']|["']$/g, "");
+        const lower = target.toLowerCase();
+
+        if (!target) {
+          return { node: <div>{inDocuments ? DOCS_PATH : HOME_PATH}</div> };
+        }
+
+        const goingUp =
+          lower === ".." || lower === "\\" || lower === "/" || lower === "~";
+
+        if (inDocuments) {
+          if (goingUp || lower === ".") {
+            setCwd("home");
+            return { node: null };
+          }
+          return {
+            node: (
+              <ErrorLine>The system cannot find the path specified.</ErrorLine>
+            ),
+          };
+        }
+
+        if (goingUp || lower === ".") return { node: null };
+
+        if (DOCS_DIR_ALIASES.includes(normalizeAppKey(lower))) {
+          setCwd("documents");
+          return { node: null };
+        }
+
+        return {
+          node: (
+            <ErrorLine>The system cannot find the path specified.</ErrorLine>
+          ),
+        };
+      }
+
+      case "touch": {
+        if (!inDocuments)
+          return {
+            node: (
+              <ErrorLine>
+                touch: your files live in My Documents. Run &lsquo;cd &quot;My
+                Documents&quot;&rsquo; first.
+              </ErrorLine>
+            ),
+          };
+        if (!arg)
+          return { node: <ErrorLine>touch: missing file operand</ErrorLine> };
+        const name = resolveDocName(arg);
+        if (!(name in docs) && typeof onSaveDoc === "function") {
+          onSaveDoc(name, "");
+        }
+        return { node: null };
+      }
+
       case "edit":
-      case "nano": {
+      case "nano":
+      case "vim": {
+        if (!inDocuments)
+          return {
+            node: (
+              <ErrorLine>
+                nano: your files live in My Documents. Run &lsquo;cd &quot;My
+                Documents&quot;&rsquo; first.
+              </ErrorLine>
+            ),
+          };
         if (!arg)
           return {
             node: (
-              <ErrorLine>edit: missing file name (try: edit notes)</ErrorLine>
+              <ErrorLine>nano: missing file name (try: nano notes)</ErrorLine>
             ),
           };
         return { edit: resolveDocName(arg) };
@@ -409,6 +507,15 @@ export default function Terminal({
 
       case "rm":
       case "del": {
+        if (!inDocuments)
+          return {
+            node: (
+              <ErrorLine>
+                rm: your documents live in My Documents. Run &lsquo;cd &quot;My
+                Documents&quot;&rsquo; first.
+              </ErrorLine>
+            ),
+          };
         if (!arg)
           return { node: <ErrorLine>rm: missing file name</ErrorLine> };
         const name = resolveDocName(arg);
@@ -547,6 +654,32 @@ export default function Terminal({
         };
 
       case "open": {
+        if (inDocuments) {
+          const docNames = Object.keys(docs).sort();
+          if (!arg)
+            return {
+              node: (
+                <div>
+                  <Muted>Usage: open &lt;file&gt;. Files:</Muted>{" "}
+                  {docNames.length > 0 ? docNames.join(", ") : "(none)"}
+                </div>
+              ),
+            };
+          const name = resolveDocName(arg);
+          if (!(name in docs))
+            return {
+              node: <ErrorLine>open: {name}: no such file</ErrorLine>,
+            };
+          if (typeof onOpenDoc === "function") onOpenDoc(name);
+          return {
+            node: (
+              <div>
+                Opening <Heading>{name}</Heading>...
+              </div>
+            ),
+          };
+        }
+
         if (!arg)
           return {
             node: (
@@ -559,7 +692,12 @@ export default function Terminal({
         const appId = resolveAppId(arg);
         if (!appId)
           return {
-            node: <ErrorLine>open: no app named &lsquo;{arg}&rsquo;</ErrorLine>,
+            node: (
+              <ErrorLine>
+                open: no app named &lsquo;{arg}&rsquo; here. Run &lsquo;cd
+                &quot;My Documents&quot;&rsquo; for your files.
+              </ErrorLine>
+            ),
           };
         launch(appId);
         return {
@@ -646,7 +784,7 @@ export default function Terminal({
   function submit(value) {
     const echo = (
       <div>
-        <span className="text-[#2fff2f]">{PROMPT}</span>{" "}
+        <span className="text-[#2fff2f]">{prompt}</span>{" "}
         <span className="break-all">{value}</span>
       </div>
     );
@@ -718,7 +856,10 @@ export default function Terminal({
   }
 
   function argCandidatesFor(cmd) {
-    return cmd === "open" ? APP_TITLES : Object.keys(docs).sort();
+    if (cmd === "cd") return inDocuments ? [".."] : ["My Documents"];
+    if (inDocuments) return Object.keys(docs).sort();
+    if (cmd === "open") return APP_TITLES;
+    return [];
   }
 
   function handleTab() {
@@ -727,7 +868,11 @@ export default function Terminal({
       const [, leading, token] = commandMatch;
       const lower = token.toLowerCase();
 
-      if (lower === "open" || lower === "edit" || lower === "rm") {
+      if (
+        ["open", "edit", "nano", "vim", "touch", "rm", "del", "cd"].includes(
+          lower,
+        )
+      ) {
         const candidates = argCandidatesFor(lower);
         if (candidates.length > 0) {
           completeToken({
@@ -751,7 +896,9 @@ export default function Terminal({
       return;
     }
 
-    const argMatch = input.match(/^(\s*)(open|edit|rm)(\s+)(.*)$/i);
+    const argMatch = input.match(
+      /^(\s*)(open|edit|nano|vim|touch|rm|del|cd)(\s+)(.*)$/i,
+    );
     if (argMatch) {
       const [, leading, cmd, gap, token] = argMatch;
       completeToken({
@@ -850,7 +997,7 @@ export default function Terminal({
 
           <form onSubmit={handleSubmit} className="flex items-start">
             <span className="shrink-0 whitespace-pre text-[#2fff2f]">
-              {PROMPT}&nbsp;
+              {prompt}&nbsp;
             </span>
 
             <span className="relative min-w-0 flex-1">

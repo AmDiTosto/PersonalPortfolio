@@ -513,6 +513,7 @@ function App() {
         <Terminal
           onLaunch={launchApp}
           onClose={closeTerminal}
+          onOpenDoc={openDoc}
           docs={docs}
           onSaveDoc={saveDoc}
           onDeleteDoc={deleteDoc}
@@ -2131,6 +2132,7 @@ function App() {
                       <Terminal
                         onLaunch={launchApp}
                         onClose={closeTerminal}
+                        onOpenDoc={openDoc}
                         docs={docs}
                         onSaveDoc={saveDoc}
                         onDeleteDoc={deleteDoc}
