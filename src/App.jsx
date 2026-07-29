@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import computerIcon from "./assets/desktopIcons/computer_explorer-5.svg";
 import folderIcon from "./assets/desktopIcons/directory_open_file_mydocs-4.svg";
@@ -24,6 +24,8 @@ import gameStartSound from "./assets/sounds/start.mp3";
 import gameOverSound from "./assets/sounds/game-over.mp3";
 import DuckHuntField from "./components/DuckHuntField";
 import DuckHuntMetrics from "./components/DuckHuntMetrics";
+
+const Leaderboard = lazy(() => import("./components/Leaderboard"));
 import scopeCursorImage from "./assets/scope.png";
 
 const WINDOW_ICON_SRC = {
@@ -36,6 +38,7 @@ const WINDOW_ICON_SRC = {
   terminal: terminalIcon,
   display: computerIcon,
   documents: folderIcon,
+  leaderboard: folderIcon,
 };
 
 function windowIcon(id) {
@@ -400,6 +403,7 @@ function App() {
   const [pointPopups, setPointPopups] = useState([]);
   const [gameActive, setGameActive] = useState(false);
   const [gameOverVisible, setGameOverVisible] = useState(false);
+  const [leaderboardScore, setLeaderboardScore] = useState(null);
   const [score, setScore] = useState(0);
   const [misses, setMisses] = useState(0);
   const [idleMsLeft, setIdleMsLeft] = useState(GAME_IDLE_MS);
@@ -568,6 +572,28 @@ function App() {
           onCreate={createDoc}
           onRename={renameDoc}
         />
+      ),
+    },
+    {
+      id: "leaderboard",
+      type: "window",
+      title: "Leaderboard",
+      icon: (
+        <img
+          src={folderIcon}
+          alt="Leaderboard"
+          className="h-12 w-12 object-contain"
+          draggable="false"
+        />
+      ),
+      content: (
+        <Suspense
+          fallback={
+            <div className="p-4 font-ui text-sm text-win-muted">Loading…</div>
+          }
+        >
+          <Leaderboard variant="panel" />
+        </Suspense>
       ),
     },
   ];
@@ -1131,6 +1157,24 @@ function App() {
     syncGameState(0, 0);
   }
 
+  function playGameOverSound() {
+    const audio = gameOverAudioRef.current;
+    if (!audio) return;
+
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 0.9;
+      audio.onended = null;
+      const maybePromise = audio.play();
+      if (maybePromise && typeof maybePromise.catch === "function") {
+        maybePromise.catch(() => {});
+      }
+    } catch (error) {
+      console.error("Game over audio could not play:", error);
+    }
+  }
+
   function playGameOverAndHoldHud() {
     const audio = gameOverAudioRef.current;
     gameOverVisibleRef.current = true;
@@ -1254,7 +1298,26 @@ function App() {
     setPointPopups([]);
     birdsRef.current = [];
     triggerFlash("end", 240);
-    playGameOverAndHoldHud();
+
+    const finalScore = scoreRef.current;
+    if (finalScore > 0) {
+      setGameOverVisible(true);
+      playGameOverSound();
+      setLeaderboardScore(finalScore);
+    } else {
+      playGameOverAndHoldHud();
+    }
+  }
+
+  function closeLeaderboard() {
+    setLeaderboardScore(null);
+    hideGameOverHudAndReset();
+  }
+
+  function playAgainFromLeaderboard() {
+    setLeaderboardScore(null);
+    hideGameOverHudAndReset();
+    startGameSession();
   }
 
   function registerHit(points) {
@@ -1757,6 +1820,7 @@ function App() {
       setGameActive(false);
       gameOverVisibleRef.current = false;
       setGameOverVisible(false);
+      setLeaderboardScore(null);
       setIdleMsLeft(GAME_IDLE_MS);
       syncGameState(0, 0);
       clearGameTimeout();
@@ -2003,7 +2067,8 @@ function App() {
                             ? "h-[calc(100%-32px)] overflow-hidden"
                             : mobileActiveItem.id.startsWith("doc:")
                               ? "h-[calc(100%-44px)] overflow-hidden"
-                              : mobileActiveItem.id === "display"
+                              : mobileActiveItem.id === "display" ||
+                                  mobileActiveItem.id === "leaderboard"
                                 ? "h-[calc(100%-44px)] overflow-auto"
                                 : "h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
                         }
@@ -2094,6 +2159,16 @@ function App() {
                     />
                   ) : null}
 
+                  {leaderboardScore != null ? (
+                    <Suspense fallback={null}>
+                      <Leaderboard
+                        finalScore={leaderboardScore}
+                        onPlayAgain={playAgainFromLeaderboard}
+                        onClose={closeLeaderboard}
+                      />
+                    </Suspense>
+                  ) : null}
+
                   <DuckHuntField
                     birds={birds}
                     viewport={viewport}
@@ -2127,6 +2202,7 @@ function App() {
                     const isDoc = window.id.startsWith("doc:");
                     const isDisplay = window.id === "display";
                     const isDocuments = window.id === "documents";
+                    const isLeaderboard = window.id === "leaderboard";
 
                     const windowContent = isTerminal ? (
                       <Terminal
@@ -2349,7 +2425,7 @@ function App() {
                               ? "h-[calc(100%-24px)] overflow-hidden"
                               : isDoc
                                 ? "h-[calc(100%-40px)] overflow-hidden sm:h-[calc(100%-48px)]"
-                                : isDisplay
+                                : isDisplay || isLeaderboard
                                   ? "h-[calc(100%-40px)] overflow-auto sm:h-[calc(100%-48px)]"
                                   : "h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
                           }
