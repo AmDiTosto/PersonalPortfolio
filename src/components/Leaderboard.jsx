@@ -53,7 +53,7 @@ function ScoreList({ scores, loading, loadError, highlightId }) {
                     </span>
                   )}
                 </span>
-                <span className="min-w-0 flex-1 truncate uppercase tracking-wide text-win-text">
+                <span className="min-w-0 flex-1 truncate tracking-wide text-win-text">
                   {entry.name}
                 </span>
                 <span className="font-fixedsys text-[16px] tracking-wide text-win-title">
@@ -218,10 +218,10 @@ export default function Leaderboard({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={12}
-                  autoCapitalize="characters"
+                  autoCapitalize="off"
                   autoComplete="off"
                   spellCheck={false}
-                  className="win-sink min-w-0 flex-1 bg-white px-2 py-1 font-ui text-sm uppercase tracking-wide text-black outline-none"
+                  className="win-sink min-w-0 flex-1 bg-white px-2 py-1 font-ui text-sm tracking-wide text-black outline-none"
                 />
                 <button
                   type="submit"
