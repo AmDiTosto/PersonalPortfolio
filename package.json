@@ -13,6 +13,8 @@
     "@emailjs/browser": "^4.4.1",
     "@tailwindcss/vite": "^4.2.1",
     "@vercel/analytics": "^2.0.0",
+    "firebase": "^12.16.0",
+    "obscenity": "^0.4.6",
     "pdfjs-dist": "5.4.296",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
