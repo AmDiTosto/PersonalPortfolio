@@ -1540,7 +1540,7 @@ function App() {
   const desktopGameCursor =
     !isMobile && appPhase === "desktop" && gameActive && !gameOverVisible
       ? scopeCursor
-      : "default";
+      : undefined;
 
   const birdCursor =
     !isMobile && appPhase === "desktop" && !gameOverVisible

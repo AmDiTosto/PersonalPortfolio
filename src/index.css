@@ -106,3 +106,23 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+html {
+  cursor: url("./assets/cursors/arrow.svg") 2 1, default;
+}
+
+button:not(:disabled),
+a,
+summary,
+[role="button"] {
+  cursor: url("./assets/cursors/pointer.svg") 8 2, pointer;
+}
+
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]),
+textarea {
+  cursor: text;
+}
+
+button:disabled {
+  cursor: url("./assets/cursors/arrow.svg") 2 1, default;
+}
