@@ -25,7 +25,7 @@ export function validateUsername(raw) {
 
   const name = result.data;
   if (matcher.hasMatch(name)) {
-    return { ok: false, error: "Please choose a cleaner name." };
+    return { ok: false, error: "Please choose another name" };
   }
 
   return { ok: true, name };

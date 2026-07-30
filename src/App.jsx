@@ -399,6 +399,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [resizing, setResizing] = useState(null);
+  const [selection, setSelection] = useState(null);
   const [birds, setBirds] = useState([]);
   const [pointPopups, setPointPopups] = useState([]);
   const [gameActive, setGameActive] = useState(false);
@@ -1391,6 +1392,23 @@ function App() {
     });
   }
 
+  function startSelection(e) {
+    if (isMobile) return;
+    if (e.button !== 0) return;
+    if (gameActiveRef.current) return;
+    if (e.target !== e.currentTarget) return;
+
+    e.preventDefault();
+    setContextMenu(null);
+    setStartMenuOpen(false);
+
+    const rect = desktopRef.current?.getBoundingClientRect();
+    const x = e.clientX - (rect?.left ?? 0);
+    const y = e.clientY - (rect?.top ?? 0);
+
+    setSelection({ startX: x, startY: y, curX: x, curY: y });
+  }
+
   function handleBirdAnimationEnd(id, e) {
     if (e.target !== e.currentTarget) return;
 
@@ -1546,6 +1564,15 @@ function App() {
     !isMobile && appPhase === "desktop" && !gameOverVisible
       ? scopeCursor
       : "pointer";
+
+  const selectionRect = selection
+    ? {
+        x: Math.min(selection.startX, selection.curX),
+        y: Math.min(selection.startY, selection.curY),
+        width: Math.abs(selection.curX - selection.startX),
+        height: Math.abs(selection.curY - selection.startY),
+      }
+    : null;
 
   useEffect(() => {
     birdsRef.current = birds;
@@ -1801,6 +1828,36 @@ function App() {
     };
   }, [resizing, viewport, isMobile]);
 
+  const isSelecting = selection !== null;
+
+  useEffect(() => {
+    if (!isSelecting || isMobile) return;
+
+    function handleSelectionMove(e) {
+      const rect = desktopRef.current?.getBoundingClientRect();
+      const curX = clamp(e.clientX - (rect?.left ?? 0), 0, viewport.width);
+      const curY = clamp(
+        e.clientY - (rect?.top ?? 0),
+        0,
+        viewport.height - TASKBAR_HEIGHT,
+      );
+
+      setSelection((prev) => (prev ? { ...prev, curX, curY } : prev));
+    }
+
+    function handleSelectionUp() {
+      setSelection(null);
+    }
+
+    window.addEventListener("mousemove", handleSelectionMove);
+    window.addEventListener("mouseup", handleSelectionUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleSelectionMove);
+      window.removeEventListener("mouseup", handleSelectionUp);
+    };
+  }, [isSelecting, viewport, isMobile]);
+
   useEffect(() => {
     zCounter.current = openWindows.reduce(
       (max, window) => Math.max(max, window.z),
@@ -1976,6 +2033,7 @@ function App() {
           >
             <div
               ref={desktopRef}
+              onMouseDown={startSelection}
               onClick={handleDesktopClick}
               onContextMenu={handleDesktopContextMenu}
               className="relative w-full select-none"
@@ -2137,6 +2195,19 @@ function App() {
                       </button>
                     ))}
                   </div>
+
+                  {selectionRect &&
+                  (selectionRect.width > 2 || selectionRect.height > 2) ? (
+                    <div
+                      className="pointer-events-none absolute z-[9] border border-[#8ec5ff] bg-[#4a9cff]/25"
+                      style={{
+                        left: `${selectionRect.x}px`,
+                        top: `${selectionRect.y}px`,
+                        width: `${selectionRect.width}px`,
+                        height: `${selectionRect.height}px`,
+                      }}
+                    />
+                  ) : null}
 
                   {firstBirdHintVisible && !gameActive && !gameOverVisible ? (
                     <div className="pointer-events-none absolute left-1/2 top-4 z-[38] -translate-x-1/2">
@@ -2433,15 +2504,16 @@ function App() {
                           {windowContent}
                         </div>
 
-                        {isTerminal && !window.maximized ? (
+                        {!window.maximized ? (
                           <div
                             onMouseDown={(e) => startResizing(e, window.id)}
                             className="absolute bottom-0 right-0 z-20 h-4 w-4 cursor-nwse-resize"
                             style={{
-                              background:
-                                "linear-gradient(135deg, transparent 0 54%, rgba(51,255,51,0.55) 54% 61%, transparent 61% 76%, rgba(51,255,51,0.55) 76% 83%, transparent 83%)",
+                              background: isTerminal
+                                ? "linear-gradient(135deg, transparent 0 54%, rgba(51,255,51,0.55) 54% 61%, transparent 61% 76%, rgba(51,255,51,0.55) 76% 83%, transparent 83%)"
+                                : "linear-gradient(135deg, transparent 0 48%, #ffffff 48% 55%, #808080 55% 62%, transparent 62% 72%, #ffffff 72% 79%, #808080 79% 86%, transparent 86%)",
                             }}
-                            aria-label="Resize terminal"
+                            aria-label="Resize window"
                           />
                         ) : null}
                       </div>
