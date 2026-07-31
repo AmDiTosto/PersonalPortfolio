@@ -5,10 +5,16 @@ import trophyIcon from "../assets/desktopIcons/leaderboard.svg";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-function ScoreList({ scores, loading, loadError, highlightId }) {
+function ScoreList({ scores, loading, loadError, highlightId, fill = false }) {
   return (
-    <div className="win-sink overflow-hidden bg-white">
-      <div className="flex items-center gap-2 bg-win-title px-2 py-1">
+    <div
+      className={
+        fill
+          ? "flex min-h-0 flex-1 flex-col"
+          : "win-sink overflow-hidden bg-white"
+      }
+    >
+      <div className="flex shrink-0 items-center gap-2 bg-win-title px-2 py-1">
         <span className="w-6 shrink-0 text-center font-ui text-[10px] font-bold text-white/70">
           #
         </span>
@@ -20,7 +26,11 @@ function ScoreList({ scores, loading, loadError, highlightId }) {
         </span>
       </div>
 
-      <div className="max-h-[260px] overflow-auto">
+      <div
+        className={
+          fill ? "min-h-0 flex-1 overflow-auto" : "max-h-[260px] overflow-auto"
+        }
+      >
         {loading ? (
           <p className="p-5 text-center font-ui text-sm text-win-muted">
             Loading&hellip;
@@ -57,7 +67,7 @@ function ScoreList({ scores, loading, loadError, highlightId }) {
                   {entry.name}
                 </span>
                 <span className="font-fixedsys text-[16px] tracking-wide text-win-title">
-                  {String(entry.score).padStart(6, "0")}
+                  {String(entry.score).padStart(7, "0")}
                 </span>
               </li>
             ))}
@@ -161,20 +171,25 @@ export default function Leaderboard({
 
   if (variant === "panel") {
     return (
-      <div className="flex min-h-full flex-col bg-win-face p-4">
-        <div className="mb-3">{titleBlock}</div>
+      <div className="flex h-full min-h-full flex-col bg-win-face p-4">
+        <div className="mb-3 shrink-0">{titleBlock}</div>
         <ScoreList
           scores={scores}
           loading={loading}
           loadError={loadError}
           highlightId={highlightId}
+          fill
         />
       </div>
     );
   }
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      className="pointer-events-auto absolute inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+    >
       <div className="win-frame w-full max-w-[400px] bg-win-face">
         <div className="aero-titlebar flex h-9 items-center justify-between px-2">
           <span className="font-ui text-sm font-bold tracking-wide text-white">
@@ -203,7 +218,7 @@ export default function Leaderboard({
               </div>
             </div>
             <div className="font-fixedsys text-3xl leading-none tracking-[0.1em] text-win-title">
-              {String(finalScore).padStart(6, "0")}
+              {String(finalScore).padStart(7, "0")}
             </div>
           </div>
 

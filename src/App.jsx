@@ -269,6 +269,8 @@ function App() {
   const MOBILE_BREAKPOINT = 768;
 
   const MAX_MISSES = 5;
+  const MAX_MULTIPLIER = 25;
+  const HEART_COOLDOWN_MS = 8000;
   const GAME_IDLE_MS = 15000;
   const MAX_ACTIVE_BIRDS = 6;
 
@@ -407,6 +409,9 @@ function App() {
   const [leaderboardScore, setLeaderboardScore] = useState(null);
   const [score, setScore] = useState(0);
   const [misses, setMisses] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [feathers, setFeathers] = useState([]);
+  const [shots, setShots] = useState([]);
   const [idleMsLeft, setIdleMsLeft] = useState(GAME_IDLE_MS);
   const [flashMode, setFlashMode] = useState("none");
   const [startMenuOpen, setStartMenuOpen] = useState(false);
@@ -440,6 +445,8 @@ function App() {
   const gameActiveRef = useRef(false);
   const scoreRef = useRef(0);
   const missesRef = useRef(0);
+  const comboRef = useRef(0);
+  const heartCooldownRef = useRef(0);
   const reducedMotionRef = useRef(false);
   const pageIsActiveRef = useRef(pageIsActive);
   const gameOverVisibleRef = useRef(false);
@@ -1065,7 +1072,7 @@ function App() {
   }
 
   function playGameStart() {
-    playClonedAudio(gameStartAudioRef, 0.9);
+    playClonedAudio(gameStartAudioRef, 0.6);
   }
 
   function clearBirdSpawnTimer() {
@@ -1116,6 +1123,66 @@ function App() {
     setPointPopups((prev) => prev.filter((popup) => popup.id !== id));
   }
 
+  function removeFeather(id) {
+    setFeathers((prev) => prev.filter((feather) => feather.id !== id));
+  }
+
+  function removeShot(id) {
+    setShots((prev) => prev.filter((shot) => shot.id !== id));
+  }
+
+  function resetCombo() {
+    comboRef.current = 0;
+    setCombo(0);
+  }
+
+  function toDesktopPoint(clientX, clientY) {
+    const rect = desktopRef.current?.getBoundingClientRect();
+    return {
+      x: clientX - (rect?.left ?? 0),
+      y: clientY - (rect?.top ?? 0),
+    };
+  }
+
+  function spawnShot(clientX, clientY) {
+    if (reducedMotionRef.current) return;
+
+    const { x, y } = toDesktopPoint(clientX, clientY);
+    const id = `shot-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setShots((prev) => [...prev, { id, x, y }]);
+  }
+
+  function spawnFeathers(clientX, clientY) {
+    if (reducedMotionRef.current) return;
+
+    const { x, y } = toDesktopPoint(clientX, clientY);
+    const base = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const burst = Array.from({ length: 7 }, (_, index) => ({
+      id: `feather-${base}-${index}`,
+      x,
+      y,
+      dx: Math.round((Math.random() - 0.5) * 150),
+      dy: Math.round(20 + Math.random() * 95),
+      rot: Math.round((Math.random() - 0.5) * 340),
+      duration: 0.6 + Math.random() * 0.5,
+    }));
+
+    setFeathers((prev) => [...prev, ...burst]);
+  }
+
+  function triggerShake() {
+    if (reducedMotionRef.current) return;
+
+    const el = desktopRef.current;
+    if (!el) return;
+
+    el.classList.remove("duck-shake");
+    // Force reflow so the animation restarts on rapid consecutive hits.
+    void el.offsetWidth;
+    el.classList.add("duck-shake");
+  }
+
   function startIdleCountdownInterval() {
     clearIdleCountdownInterval();
 
@@ -1155,7 +1222,10 @@ function App() {
     setGameOverVisible(false);
     setIdleMsLeft(GAME_IDLE_MS);
     setPointPopups([]);
+    setFeathers([]);
+    setShots([]);
     syncGameState(0, 0);
+    resetCombo();
   }
 
   function playGameOverSound() {
@@ -1165,7 +1235,7 @@ function App() {
     try {
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = 0.9;
+      audio.volume = 0.6;
       audio.onended = null;
       const maybePromise = audio.play();
       if (maybePromise && typeof maybePromise.catch === "function") {
@@ -1193,7 +1263,7 @@ function App() {
     try {
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = 0.9;
+      audio.volume = 0.6;
 
       audio.onended = () => {
         hideGameOverHudAndReset();
@@ -1266,6 +1336,10 @@ function App() {
     }
     setIdleMsLeft(GAME_IDLE_MS);
     syncGameState(0, 0);
+    resetCombo();
+    heartCooldownRef.current = 0;
+    setFeathers([]);
+    setShots([]);
     playGameStart();
     triggerFlash("start", 180);
     resetGameSessionTimeout();
@@ -1297,6 +1371,9 @@ function App() {
     setIdleMsLeft(GAME_IDLE_MS);
     setBirds([]);
     setPointPopups([]);
+    setFeathers([]);
+    setShots([]);
+    resetCombo();
     birdsRef.current = [];
     triggerFlash("end", 240);
 
@@ -1321,14 +1398,24 @@ function App() {
     startGameSession();
   }
 
-  function registerHit(points) {
-    const nextScore = scoreRef.current + points;
-    syncGameState(nextScore, missesRef.current);
+  function registerHit(basePoints) {
+    const nextCombo = comboRef.current + 1;
+    comboRef.current = nextCombo;
+    setCombo(nextCombo);
+
+    const multiplier = Math.min(nextCombo, MAX_MULTIPLIER);
+    const earned = basePoints * multiplier;
+
+    syncGameState(scoreRef.current + earned, missesRef.current);
     resetGameSessionTimeout();
+
+    return { earned, multiplier };
   }
 
   function registerMiss() {
     if (!gameActiveRef.current) return;
+
+    resetCombo();
 
     const nextMisses = missesRef.current + 1;
     syncGameState(scoreRef.current, nextMisses);
@@ -1412,23 +1499,78 @@ function App() {
   function handleBirdAnimationEnd(id, e) {
     if (e.target !== e.currentTarget) return;
 
-    let escapedUnshot = false;
+    let penalize = false;
 
     setBirds((prev) => {
       const bird = prev.find((item) => item.id === id);
-      escapedUnshot = Boolean(bird && !bird.shot);
+      // A heart that flies off costs nothing — it's a bonus, not an obligation.
+      penalize = Boolean(bird && !bird.shot && (bird.kind ?? "duck") === "duck");
       return prev.filter((item) => item.id !== id);
     });
 
-    if (escapedUnshot) {
+    if (penalize) {
       registerMiss();
     }
+  }
+
+  function recoverMiss() {
+    if (missesRef.current <= 0) return;
+    syncGameState(scoreRef.current, missesRef.current - 1);
+    resetGameSessionTimeout();
+  }
+
+  function maybeSpawnHeart() {
+    if (!gameActiveRef.current) return false;
+    if (missesRef.current < 1) return false;
+    if (birdsRef.current.some((bird) => bird.kind === "heart")) return false;
+
+    const now = Date.now();
+    if (now - heartCooldownRef.current < HEART_COOLDOWN_MS) return false;
+
+    // Mercy ramp: rare when you're comfortable, likelier the closer you are to
+    // game over (~3% at 1 miss climbing to a 10% cap).
+    const chance = Math.min(0.03 + 0.017 * (missesRef.current - 1), 0.1);
+    if (Math.random() >= chance) return false;
+
+    heartCooldownRef.current = now;
+
+    const id = `heart-${now}-${Math.random().toString(36).slice(2)}`;
+    const size = 54 + Math.floor(Math.random() * 12);
+
+    const minTop = 96;
+    const maxTop = Math.max(minTop, viewport.height - TASKBAR_HEIGHT - size - 24);
+    const top = Math.floor(Math.random() * (maxTop - minTop + 1)) + minTop;
+
+    // Flies faster than a normal duck so catching it is a skill moment.
+    const duration = 3.2 + Math.random() * 1.1;
+    const fromRight = Math.random() < 0.5;
+
+    setBirds((prev) => [
+      ...prev,
+      {
+        id,
+        top,
+        size,
+        duration,
+        fromRight,
+        shot: false,
+        frozenX: 0,
+        frozenY: 0,
+        kind: "heart",
+        birdType: "heart",
+        points: 0,
+      },
+    ]);
+
+    return true;
   }
 
   function spawnBird() {
     if (!pageIsActiveRef.current) return;
     if (gameOverVisibleRef.current) return;
     if (birdsRef.current.length >= MAX_ACTIVE_BIRDS) return;
+
+    if (maybeSpawnHeart()) return;
 
     const birdType = pickRandomBirdType();
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -1462,6 +1604,7 @@ function App() {
         shot: false,
         frozenX: 0,
         frozenY: 0,
+        kind: "duck",
         birdType: birdType.type,
         sprite: birdType.sprite,
         points: birdType.points,
@@ -1481,6 +1624,7 @@ function App() {
     };
 
     let shotBirdPoints = 0;
+    let shotKind = "duck";
     let didShoot = false;
 
     setBirds((prev) =>
@@ -1489,6 +1633,7 @@ function App() {
 
         didShoot = true;
         shotBirdPoints = bird.points;
+        shotKind = bird.kind ?? "duck";
 
         return {
           ...bird,
@@ -1501,31 +1646,51 @@ function App() {
 
     if (!didShoot) return;
 
-    const popupId = `${id}-points`;
-
-    setPointPopups((prev) => [
-      ...prev,
-      {
-        id: popupId,
-        x: birdRect.right - desktopRect.left + 8,
-        y: birdRect.top - desktopRect.top + 6,
-        points: shotBirdPoints,
-      },
-    ]);
-
     playGunshot();
+
+    const centerX = birdRect.left + birdRect.width / 2;
+    const centerY = birdRect.top + birdRect.height / 2;
+    const popupX = birdRect.right - desktopRect.left + 8;
+    const popupY = birdRect.top - desktopRect.top + 6;
+
+    if (shotKind === "heart") {
+      // Recover a miss; keeps your combo (a good shot) and awards no points.
+      recoverMiss();
+      triggerFlash("heal", 220);
+
+      setPointPopups((prev) => [
+        ...prev,
+        { id: `${id}-life`, x: popupX, y: popupY, life: true },
+      ]);
+
+      spawnShot(e.clientX, e.clientY);
+      spawnFeathers(centerX, centerY);
+      triggerShake();
+      return;
+    }
 
     if (!gameActiveRef.current) {
       startGameSession();
     }
 
-    registerHit(shotBirdPoints);
+    const { earned, multiplier } = registerHit(shotBirdPoints);
+
+    setPointPopups((prev) => [
+      ...prev,
+      { id: `${id}-points`, x: popupX, y: popupY, points: earned, multiplier },
+    ]);
+
+    // Spawn effects after startGameSession so its reset doesn't clear them.
+    spawnShot(e.clientX, e.clientY);
+    spawnFeathers(centerX, centerY);
+    triggerShake();
   }
 
-  function handleDesktopClick() {
+  function handleDesktopClick(e) {
     if (!gameActiveRef.current) return;
     if (!pageIsActiveRef.current) return;
 
+    spawnShot(e.clientX, e.clientY);
     playGunshot();
     registerMiss();
   }
@@ -1591,12 +1756,12 @@ function App() {
 
     const start = new Audio(gameStartSound);
     start.preload = "auto";
-    start.volume = 0.9;
+    start.volume = 0.6;
     gameStartAudioRef.current = start;
 
     const over = new Audio(gameOverSound);
     over.preload = "auto";
-    over.volume = 0.9;
+    over.volume = 0.6;
     gameOverAudioRef.current = over;
 
     return () => {
@@ -1872,6 +2037,8 @@ function App() {
     if (appPhase !== "desktop" || isMobile || reducedMotion) {
       setBirds([]);
       setPointPopups([]);
+      setFeathers([]);
+      setShots([]);
       birdsRef.current = [];
       gameActiveRef.current = false;
       setGameActive(false);
@@ -1880,6 +2047,7 @@ function App() {
       setLeaderboardScore(null);
       setIdleMsLeft(GAME_IDLE_MS);
       syncGameState(0, 0);
+      resetCombo();
       clearGameTimeout();
       clearFlashTimer();
       clearGameOverHold();
@@ -2054,7 +2222,9 @@ function App() {
                         ? "rgba(255,255,255,0.06)"
                         : flashMode === "miss"
                           ? "rgba(255, 80, 80, 0.22)"
-                          : "rgba(255,120,80,0.08)",
+                          : flashMode === "heal"
+                            ? "rgba(80, 230, 120, 0.20)"
+                            : "rgba(255,120,80,0.08)",
                   }}
                 />
               ) : null}
@@ -2224,6 +2394,8 @@ function App() {
                       score={score}
                       misses={misses}
                       maxMisses={MAX_MISSES}
+                      multiplier={Math.min(combo, MAX_MULTIPLIER)}
+                      gameActive={gameActive}
                       gameOverVisible={gameOverVisible}
                       idleMsLeft={idleMsLeft}
                       showIdleCountdown={gameActive && idleMsLeft <= 5000}
@@ -2248,20 +2420,95 @@ function App() {
                     onBirdAnimationEnd={handleBirdAnimationEnd}
                   />
 
-                  <div className="pointer-events-none absolute inset-0 z-[34] overflow-hidden">
-                    {pointPopups.map((popup) => (
-                      <div
-                        key={popup.id}
-                        onAnimationEnd={() => removePointPopup(popup.id)}
-                        className="absolute font-fixedsys text-3xl font-bold text-[#fff2c8] drop-shadow-[2px_2px_0_rgba(0,0,0,0.9)]"
+                  <div className="pointer-events-none absolute inset-0 z-[33] overflow-hidden">
+                    {feathers.map((feather) => (
+                      <span
+                        key={feather.id}
+                        onAnimationEnd={() => removeFeather(feather.id)}
+                        className="absolute block h-[9px] w-[5px] rounded-full bg-[#fdf3e3] shadow-[0_0_2px_rgba(0,0,0,0.45)]"
                         style={{
-                          left: `${popup.x}px`,
-                          top: `${popup.y}px`,
-                          animation: "pointPopupFloat 1500ms ease-out forwards",
+                          left: `${feather.x}px`,
+                          top: `${feather.y}px`,
+                          "--fx": `${feather.dx}px`,
+                          "--fy": `${feather.dy}px`,
+                          "--fr": `${feather.rot}deg`,
+                          animation: `featherFly ${feather.duration}s ease-out forwards`,
                         }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="pointer-events-none absolute inset-0 z-[34] overflow-hidden">
+                    {pointPopups.map((popup) => {
+                      if (popup.life) {
+                        return (
+                          <div
+                            key={popup.id}
+                            onAnimationEnd={() => removePointPopup(popup.id)}
+                            className="absolute whitespace-nowrap font-fixedsys text-2xl font-bold text-[#4ade80] drop-shadow-[2px_2px_0_rgba(0,0,0,0.9)]"
+                            style={{
+                              left: `${popup.x}px`,
+                              top: `${popup.y}px`,
+                              animation:
+                                "pointPopupFloat 1500ms ease-out forwards",
+                            }}
+                          >
+                            +1 LIFE
+                          </div>
+                        );
+                      }
+
+                      const m = popup.multiplier ?? 1;
+                      const color =
+                        m >= 6
+                          ? "#ff5252"
+                          : m >= 4
+                            ? "#ff9f43"
+                            : m >= 2
+                              ? "#ffe066"
+                              : "#fff2c8";
+
+                      return (
+                        <div
+                          key={popup.id}
+                          onAnimationEnd={() => removePointPopup(popup.id)}
+                          className="absolute whitespace-nowrap font-fixedsys font-bold drop-shadow-[2px_2px_0_rgba(0,0,0,0.9)]"
+                          style={{
+                            left: `${popup.x}px`,
+                            top: `${popup.y}px`,
+                            color,
+                            fontSize: m >= 4 ? "2.4rem" : "1.875rem",
+                            animation: "pointPopupFloat 1500ms ease-out forwards",
+                          }}
+                        >
+                          +{popup.points}
+                          {m >= 2 ? (
+                            <span className="ml-1 align-top text-[0.62em]">
+                              ×{m}
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pointer-events-none absolute inset-0 z-[37] overflow-hidden">
+                    {shots.map((shot) => (
+                      <span
+                        key={shot.id}
+                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                        style={{ left: `${shot.x}px`, top: `${shot.y}px` }}
                       >
-                        +{popup.points}
-                      </div>
+                        <span
+                          onAnimationEnd={() => removeShot(shot.id)}
+                          className="block h-10 w-10 rounded-full"
+                          style={{
+                            background:
+                              "radial-gradient(circle, rgba(255,255,240,0.95) 0%, rgba(255,214,90,0.75) 35%, rgba(255,120,40,0.28) 60%, transparent 72%)",
+                            animation: "muzzleFlash 180ms ease-out forwards",
+                          }}
+                        />
+                      </span>
                     ))}
                   </div>
 
@@ -2771,6 +3018,40 @@ function App() {
             opacity: 0;
             transform: translateY(-28px) scale(1.05);
           }
+        }
+
+        @keyframes featherFly {
+          0% {
+            opacity: 1;
+            transform: translate(0, 0) rotate(0deg) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(var(--fx), var(--fy)) rotate(var(--fr)) scale(0.85);
+          }
+        }
+
+        @keyframes muzzleFlash {
+          0% { opacity: 0.9; transform: scale(0.4); }
+          55% { opacity: 1; transform: scale(1.15); }
+          100% { opacity: 0; transform: scale(1.55); }
+        }
+
+        @keyframes duckShake {
+          0% { transform: translate(0, 0); }
+          20% { transform: translate(-5px, 3px); }
+          40% { transform: translate(5px, -3px); }
+          60% { transform: translate(-4px, -2px); }
+          80% { transform: translate(4px, 2px); }
+          100% { transform: translate(0, 0); }
+        }
+
+        .duck-shake { animation: duckShake 0.32s ease-in-out; }
+
+        @keyframes comboPop {
+          0% { transform: scale(0.5); opacity: 0; }
+          55% { transform: scale(1.25); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
         }
       `}</style>
 

@@ -61,6 +61,16 @@ export default function DuckHuntField({
             filter: brightness(1.18);
           }
         }
+
+        @keyframes heartPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.12); }
+        }
+
+        @keyframes heartBurst {
+          0% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(1.7); opacity: 0; }
+        }
       `}</style>
     </>
   );
