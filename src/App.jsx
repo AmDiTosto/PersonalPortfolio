@@ -262,6 +262,29 @@ function nowMs() {
   return Date.now();
 }
 
+const DEEP_LINK_ALIASES = {
+  about: "about",
+  me: "about",
+  computer: "about",
+  home: "about",
+  experience: "experience",
+  work: "experience",
+  exp: "experience",
+  projects: "projects",
+  project: "projects",
+  resume: "resume",
+  cv: "resume",
+  contact: "contact",
+  email: "contact",
+  terminal: "terminal",
+  cmd: "terminal",
+  secret: "secret",
+  documents: "documents",
+  docs: "documents",
+  leaderboard: "leaderboard",
+  scores: "leaderboard",
+};
+
 function App() {
   const scopeCursor = `url(${scopeCursorImage}) 32 32, crosshair`;
 
@@ -269,7 +292,7 @@ function App() {
   const MOBILE_BREAKPOINT = 768;
 
   const MAX_MISSES = 5;
-  const MAX_MULTIPLIER = 25;
+  const MAX_MULTIPLIER = 10;
   const HEART_COOLDOWN_MS = 8000;
   const GAME_IDLE_MS = 15000;
   const MAX_ACTIVE_BIRDS = 6;
@@ -1504,7 +1527,9 @@ function App() {
     setBirds((prev) => {
       const bird = prev.find((item) => item.id === id);
       // A heart that flies off costs nothing — it's a bonus, not an obligation.
-      penalize = Boolean(bird && !bird.shot && (bird.kind ?? "duck") === "duck");
+      penalize = Boolean(
+        bird && !bird.shot && (bird.kind ?? "duck") === "duck",
+      );
       return prev.filter((item) => item.id !== id);
     });
 
@@ -1538,7 +1563,10 @@ function App() {
     const size = 54 + Math.floor(Math.random() * 12);
 
     const minTop = 96;
-    const maxTop = Math.max(minTop, viewport.height - TASKBAR_HEIGHT - size - 24);
+    const maxTop = Math.max(
+      minTop,
+      viewport.height - TASKBAR_HEIGHT - size - 24,
+    );
     const top = Math.floor(Math.random() * (maxTop - minTop + 1)) + minTop;
 
     // Flies faster than a normal duck so catching it is a skill moment.
@@ -1742,6 +1770,21 @@ function App() {
   useEffect(() => {
     birdsRef.current = birds;
   }, [birds]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const token = (params.get("app") || params.get("open") || "")
+      .toLowerCase()
+      .trim();
+    if (!token) return;
+
+    const id = DEEP_LINK_ALIASES[token];
+    if (id && desktopItemMap[id]) {
+      launchApp(id);
+    }
+  }, []);
 
   useEffect(() => {
     const audio = new Audio(startupSound);
@@ -2478,7 +2521,8 @@ function App() {
                             top: `${popup.y}px`,
                             color,
                             fontSize: m >= 4 ? "2.4rem" : "1.875rem",
-                            animation: "pointPopupFloat 1500ms ease-out forwards",
+                            animation:
+                              "pointPopupFloat 1500ms ease-out forwards",
                           }}
                         >
                           +{popup.points}
