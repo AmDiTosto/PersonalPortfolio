@@ -2527,7 +2527,8 @@ function App() {
                         mobileActiveItem.id.startsWith("doc:") ||
                         mobileActiveItem.id === "display" ||
                         mobileActiveItem.id === "leaderboard" ||
-                        mobileActiveItem.id === "resume" ? (
+                        mobileActiveItem.id === "resume" ||
+                        mobileActiveItem.id === "secret" ? (
                           mobileActiveItem.content
                         ) : (
                           <WinScroll className="h-full bg-win-content p-3 text-sm text-win-text">
@@ -2765,15 +2766,17 @@ function App() {
                     const isDocuments = window.id === "documents";
                     const isLeaderboard = window.id === "leaderboard";
                     const isResume = window.id === "resume";
+                    const isSecret = window.id === "secret";
                     // Regular flow-content windows get the custom Win95 scrollbar.
                     // Terminal/Notepad/Display/Leaderboard/Resume manage their own
-                    // internal scroll, so they keep native scrolling.
+                    // internal scroll; Secret is a full-bleed video.
                     const usesWinScroll =
                       !isTerminal &&
                       !isDoc &&
                       !isDisplay &&
                       !isLeaderboard &&
-                      !isResume;
+                      !isResume &&
+                      !isSecret;
 
                     const windowContent = isTerminal ? (
                       <Terminal
@@ -2994,7 +2997,7 @@ function App() {
                           className={
                             isTerminal
                               ? "h-[calc(100%-24px)] overflow-hidden"
-                              : isDoc
+                              : isDoc || isSecret
                                 ? "h-[calc(100%-40px)] overflow-hidden sm:h-[calc(100%-48px)]"
                                 : isDisplay || isLeaderboard
                                   ? "h-[calc(100%-40px)] overflow-auto sm:h-[calc(100%-48px)]"
