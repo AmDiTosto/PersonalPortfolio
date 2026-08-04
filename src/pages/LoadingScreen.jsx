@@ -25,7 +25,7 @@ export default function LoadingScreen({ onComplete }) {
   }, [onComplete]);
 
   useEffect(() => {
-    const duration = 7000;
+    const duration = 4500;
     const startTime = performance.now();
     let animationFrameId;
 
