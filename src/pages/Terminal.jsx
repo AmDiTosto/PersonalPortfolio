@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { WinScrollBar } from "../components/WinScroll";
 
 const HOME_PATH = "C:\\Users\\Adrian";
 const DOCS_PATH = "C:\\Users\\Adrian\\My Documents";
@@ -982,7 +983,7 @@ export default function Terminal({
           onMouseDown={(e) => {
             if (e.target.tagName !== "A") focusInput();
           }}
-          className="absolute inset-0 overflow-auto whitespace-pre-wrap break-words p-2 font-fixedsys text-[#33ff33] sm:p-3"
+          className="winscroll-hide absolute inset-0 overflow-auto whitespace-pre-wrap break-words p-2 pr-[18px] font-fixedsys text-[#33ff33] sm:p-3 sm:pr-[18px]"
           style={{
             fontSize: `${FONT_PX}px`,
             lineHeight: 1.5,
@@ -1054,6 +1055,10 @@ export default function Terminal({
               "radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,0.55) 100%)",
           }}
         />
+
+        <div className="absolute inset-y-0 right-0 z-20 w-4">
+          <WinScrollBar targetRef={screenRef} />
+        </div>
 
         {editor ? (
           <div className="absolute inset-0 z-30 flex flex-col bg-black">

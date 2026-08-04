@@ -126,3 +126,80 @@ textarea {
 button:disabled {
   cursor: url("./assets/cursors/arrow.svg") 2 1, default;
 }
+
+/* Viewports handled by the <WinScroll> component hide their native bar. */
+.winscroll-hide {
+  scrollbar-width: none;
+}
+.winscroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- Classic Windows 95/98 scrollbars --- */
+
+/* Firefox (inherited): gray thumb on a light track. No 3D/arrows available. */
+html {
+  scrollbar-width: auto;
+  scrollbar-color: #c0c0c0 #dfdfdf;
+}
+
+/* WebKit/Blink (Chrome, Safari, Edge): full 3D chrome + arrow buttons. */
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+/* classic 1px silver/white checkerboard track (Win95 "3D Objects") */
+::-webkit-scrollbar-track {
+  background-color: #c0c0c0;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'><rect width='1' height='1' fill='%23fff'/><rect x='1' y='1' width='1' height='1' fill='%23fff'/></svg>");
+}
+
+/* the paged region (between thumb and buttons) uses the same checker */
+::-webkit-scrollbar-track-piece {
+  background-color: #c0c0c0;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'><rect width='1' height='1' fill='%23fff'/><rect x='1' y='1' width='1' height='1' fill='%23fff'/></svg>");
+}
+
+::-webkit-scrollbar-corner {
+  background-color: #c0c0c0;
+}
+
+/* raised thumb — same bevel as the window buttons */
+::-webkit-scrollbar-thumb {
+  background-color: #c0c0c0;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff,
+    inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf;
+}
+
+/* raised arrow buttons, one at each end */
+::-webkit-scrollbar-button:single-button {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background-color: #c0c0c0;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: inset -1px -1px 0 0 #0a0a0a, inset 1px 1px 0 0 #ffffff,
+    inset -2px -2px 0 0 #808080, inset 2px 2px 0 0 #dfdfdf;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6' viewBox='0 0 8 6'><path d='M4 0 0 6h8z' fill='%23000'/></svg>");
+}
+::-webkit-scrollbar-button:single-button:vertical:increment {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6' viewBox='0 0 8 6'><path d='M0 0h8L4 6z' fill='%23000'/></svg>");
+}
+::-webkit-scrollbar-button:single-button:horizontal:decrement {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='8' viewBox='0 0 6 8'><path d='M0 4 6 0v8z' fill='%23000'/></svg>");
+}
+::-webkit-scrollbar-button:single-button:horizontal:increment {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='6' height='8' viewBox='0 0 6 8'><path d='M6 4 0 0v8z' fill='%23000'/></svg>");
+}
+
+/* press-in (sunken) state for thumb + buttons */
+::-webkit-scrollbar-thumb:active,
+::-webkit-scrollbar-button:single-button:active {
+  box-shadow: inset -1px -1px 0 0 #dfdfdf, inset 1px 1px 0 0 #808080,
+    inset -2px -2px 0 0 #ffffff, inset 2px 2px 0 0 #0a0a0a;
+}

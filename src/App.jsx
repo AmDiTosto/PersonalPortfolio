@@ -24,6 +24,7 @@ import gameStartSound from "./assets/sounds/start.mp3";
 import gameOverSound from "./assets/sounds/game-over.mp3";
 import DuckHuntField from "./components/DuckHuntField";
 import DuckHuntMetrics from "./components/DuckHuntMetrics";
+import WinScroll, { WinScrollBar } from "./components/WinScroll";
 
 const Leaderboard = lazy(() => import("./components/Leaderboard"));
 import scopeCursorImage from "./assets/scope.png";
@@ -48,6 +49,7 @@ function windowIcon(id) {
 function Notepad({ name, content, onSave, onClose, onDelete }) {
   const [text, setText] = useState(content);
   const [menuOpen, setMenuOpen] = useState(false);
+  const textareaRef = useRef(null);
 
   function save() {
     onSave(name, text);
@@ -76,16 +78,20 @@ function Notepad({ name, content, onSave, onClose, onDelete }) {
         </button>
       </div>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        placeholder="Type here, then File > Save (or Ctrl+S)."
-        className="win-sink min-h-0 flex-1 resize-none border-0 bg-white p-2 font-ui text-sm leading-relaxed text-black outline-none placeholder:text-win-muted"
-      />
+      <div className="win-sink flex min-h-0 flex-1 bg-white">
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          placeholder="Type here, then File > Save (or Ctrl+S)."
+          className="winscroll-hide min-w-0 flex-1 resize-none border-0 bg-white p-2 font-ui text-sm leading-relaxed text-black outline-none placeholder:text-win-muted"
+        />
+        <WinScrollBar targetRef={textareaRef} />
+      </div>
 
       {menuOpen ? (
         <>
@@ -195,6 +201,7 @@ function DisplayProperties({ themes, current, onApply, onClose }) {
   const [selected, setSelected] = useState(current);
   const selectedTheme =
     themes.find((theme) => theme.id === selected) ?? themes[0];
+  const listRef = useRef(null);
 
   return (
     <div className="flex h-full min-h-full flex-col bg-win-face p-4">
@@ -204,7 +211,11 @@ function DisplayProperties({ themes, current, onApply, onClose }) {
 
       <div className="mb-1 font-ui text-sm text-win-text">Wallpaper</div>
 
-      <div className="win-sink min-h-0 flex-1 overflow-auto bg-white">
+      <div className="win-sink flex min-h-0 flex-1 bg-white">
+        <div
+          ref={listRef}
+          className="winscroll-hide min-w-0 flex-1 overflow-auto"
+        >
         {themes.map((theme) => {
           const active = theme.id === selected;
           return (
@@ -226,6 +237,8 @@ function DisplayProperties({ themes, current, onApply, onClose }) {
             </button>
           );
         })}
+        </div>
+        <WinScrollBar targetRef={listRef} />
       </div>
 
       <div className="mt-4 flex justify-end gap-2">
@@ -290,6 +303,7 @@ function App() {
 
   const TASKBAR_HEIGHT = 56;
   const MOBILE_BREAKPOINT = 768;
+  const ICON_MARGIN = 12;
 
   const MAX_MISSES = 5;
   const MAX_MULTIPLIER = 10;
@@ -425,6 +439,9 @@ function App() {
   const [dragging, setDragging] = useState(null);
   const [resizing, setResizing] = useState(null);
   const [selection, setSelection] = useState(null);
+  const [iconPositions, setIconPositions] = useState({});
+  const [selectedIcons, setSelectedIcons] = useState([]);
+  const [iconDrag, setIconDrag] = useState(null);
   const [birds, setBirds] = useState([]);
   const [pointPopups, setPointPopups] = useState([]);
   const [gameActive, setGameActive] = useState(false);
@@ -470,6 +487,8 @@ function App() {
   const missesRef = useRef(0);
   const comboRef = useRef(0);
   const heartCooldownRef = useRef(0);
+  const didIconDragRef = useRef(false);
+  const selectionStartRef = useRef(null);
   const reducedMotionRef = useRef(false);
   const pageIsActiveRef = useRef(pageIsActive);
   const gameOverVisibleRef = useRef(false);
@@ -700,6 +719,101 @@ function App() {
       itemWidth,
       maxRows,
     };
+  }
+
+  function defaultIconPos(index, layout) {
+    const col = Math.floor(index / layout.maxRows);
+    const row = index % layout.maxRows;
+    return {
+      x: ICON_MARGIN + col * layout.itemWidth,
+      y: ICON_MARGIN + row * layout.itemHeight,
+    };
+  }
+
+  function iconBounds(layout) {
+    return {
+      maxX: Math.max(ICON_MARGIN, viewport.width - layout.itemWidth - 2),
+      maxY: Math.max(
+        getTopSafeArea(),
+        viewport.height - TASKBAR_HEIGHT - layout.itemHeight - 2,
+      ),
+    };
+  }
+
+  // Effective on-screen position: a saved override, else the default grid slot,
+  // always clamped to the current viewport.
+  function getIconPos(id) {
+    const layout = getDesktopIconLayout(viewport.width, viewport.height);
+    const index = desktopItems.findIndex((it) => it.id === id);
+    const base = iconPositions[id] ?? defaultIconPos(index, layout);
+    const { maxX, maxY } = iconBounds(layout);
+    return {
+      x: clamp(base.x, 2, maxX),
+      y: clamp(base.y, getTopSafeArea(), maxY),
+    };
+  }
+
+  function snapIconToGrid(pos, layout) {
+    const col = Math.max(
+      0,
+      Math.round((pos.x - ICON_MARGIN) / layout.itemWidth),
+    );
+    const row = Math.max(
+      0,
+      Math.round((pos.y - ICON_MARGIN) / layout.itemHeight),
+    );
+    const { maxX, maxY } = iconBounds(layout);
+    return {
+      x: clamp(ICON_MARGIN + col * layout.itemWidth, 2, maxX),
+      y: clamp(ICON_MARGIN + row * layout.itemHeight, getTopSafeArea(), maxY),
+    };
+  }
+
+  function iconsInMarquee(box) {
+    const layout = getDesktopIconLayout(viewport.width, viewport.height);
+    return desktopItems
+      .filter((item) => {
+        const p = getIconPos(item.id);
+        return (
+          p.x < box.x + box.width &&
+          p.x + layout.itemWidth > box.x &&
+          p.y < box.y + box.height &&
+          p.y + layout.itemHeight > box.y
+        );
+      })
+      .map((item) => item.id);
+  }
+
+  function startIconDrag(e, item) {
+    if (isMobile) return;
+    if (e.button !== 0) return;
+    if (gameActiveRef.current) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu(null);
+    setStartMenuOpen(false);
+
+    // Ctrl/Cmd/Shift toggles selection without starting a drag.
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      setSelectedIcons((prev) =>
+        prev.includes(item.id)
+          ? prev.filter((id) => id !== item.id)
+          : [...prev, item.id],
+      );
+      return;
+    }
+
+    const dragIds = selectedIcons.includes(item.id)
+      ? selectedIcons
+      : [item.id];
+    if (!selectedIcons.includes(item.id)) setSelectedIcons(dragIds);
+
+    const origins = {};
+    for (const id of dragIds) origins[id] = getIconPos(id);
+
+    didIconDragRef.current = false;
+    setIconDrag({ startX: e.clientX, startY: e.clientY, ids: dragIds, origins });
   }
 
   function openDesktopItem(item) {
@@ -1349,6 +1463,8 @@ function App() {
     setOpenWindows([]);
     setMobileActiveApp(null);
     setPointPopups([]);
+    setSelectedIcons([]);
+    setIconDrag(null);
 
     gameActiveRef.current = true;
     setGameActive(true);
@@ -1511,11 +1627,13 @@ function App() {
     e.preventDefault();
     setContextMenu(null);
     setStartMenuOpen(false);
+    setSelectedIcons([]);
 
     const rect = desktopRef.current?.getBoundingClientRect();
     const x = e.clientX - (rect?.left ?? 0);
     const y = e.clientY - (rect?.top ?? 0);
 
+    selectionStartRef.current = { x, y };
     setSelection({ startX: x, startY: y, curX: x, curY: y });
   }
 
@@ -2051,6 +2169,17 @@ function App() {
       );
 
       setSelection((prev) => (prev ? { ...prev, curX, curY } : prev));
+
+      const start = selectionStartRef.current;
+      if (start) {
+        const box = {
+          x: Math.min(start.x, curX),
+          y: Math.min(start.y, curY),
+          width: Math.abs(curX - start.x),
+          height: Math.abs(curY - start.y),
+        };
+        setSelectedIcons(iconsInMarquee(box));
+      }
     }
 
     function handleSelectionUp() {
@@ -2065,6 +2194,54 @@ function App() {
       window.removeEventListener("mouseup", handleSelectionUp);
     };
   }, [isSelecting, viewport, isMobile]);
+
+  useEffect(() => {
+    if (!iconDrag || isMobile) return;
+
+    const layout = getDesktopIconLayout(viewport.width, viewport.height);
+    const { maxX, maxY } = iconBounds(layout);
+
+    function handleMove(e) {
+      const dx = e.clientX - iconDrag.startX;
+      const dy = e.clientY - iconDrag.startY;
+      // Small threshold so a click isn't treated as a drag.
+      if (!didIconDragRef.current && Math.abs(dx) + Math.abs(dy) < 5) return;
+      didIconDragRef.current = true;
+
+      setIconPositions((prev) => {
+        const next = { ...prev };
+        for (const id of iconDrag.ids) {
+          const o = iconDrag.origins[id];
+          next[id] = {
+            x: clamp(o.x + dx, 2, maxX),
+            y: clamp(o.y + dy, getTopSafeArea(), maxY),
+          };
+        }
+        return next;
+      });
+    }
+
+    function handleUp() {
+      if (didIconDragRef.current) {
+        setIconPositions((prev) => {
+          const next = { ...prev };
+          for (const id of iconDrag.ids) {
+            if (next[id]) next[id] = snapIconToGrid(next[id], layout);
+          }
+          return next;
+        });
+      }
+      setIconDrag(null);
+    }
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [iconDrag, isMobile, viewport]);
 
   useEffect(() => {
     zCounter.current = openWindows.reduce(
@@ -2341,10 +2518,22 @@ function App() {
                               : mobileActiveItem.id === "display" ||
                                   mobileActiveItem.id === "leaderboard"
                                 ? "h-[calc(100%-44px)] overflow-auto"
-                                : "h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
+                                : mobileActiveItem.id === "resume"
+                                  ? "h-[calc(100%-44px)] overflow-auto bg-win-content p-3 text-sm text-win-text"
+                                  : "h-[calc(100%-44px)] overflow-hidden"
                         }
                       >
-                        {mobileActiveItem.content}
+                        {mobileActiveItem.id === "terminal" ||
+                        mobileActiveItem.id.startsWith("doc:") ||
+                        mobileActiveItem.id === "display" ||
+                        mobileActiveItem.id === "leaderboard" ||
+                        mobileActiveItem.id === "resume" ? (
+                          mobileActiveItem.content
+                        ) : (
+                          <WinScroll className="h-full bg-win-content p-3 text-sm text-win-text">
+                            {mobileActiveItem.content}
+                          </WinScroll>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -2373,27 +2562,31 @@ function App() {
                 </div>
               ) : (
                 <>
-                  <div
-                    className="absolute left-3 top-3 z-10"
-                    style={{
-                      display: "grid",
-                      gridAutoFlow: "column",
-                      gridTemplateRows: `repeat(${desktopIconLayout.maxRows}, ${desktopIconLayout.itemHeight}px)`,
-                      gridAutoColumns: `${desktopIconLayout.itemWidth}px`,
-                      maxHeight: `${viewport.height - TASKBAR_HEIGHT - 24}px`,
-                      maxWidth: `${viewport.width - 24}px`,
-                    }}
-                  >
-                    {desktopItems.map((item) => (
+                  {desktopItems.map((item) => {
+                    const pos = getIconPos(item.id);
+                    const isSelected = selectedIcons.includes(item.id);
+                    return (
                       <button
                         key={item.id}
                         type="button"
+                        onMouseDown={(e) => startIconDrag(e, item)}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (didIconDragRef.current) {
+                            didIconDragRef.current = false;
+                            return;
+                          }
+                          if (e.ctrlKey || e.metaKey || e.shiftKey) return;
                           openDesktopItem(item);
                         }}
-                        className="flex cursor-pointer flex-col items-center justify-start text-center"
+                        className={`absolute z-10 flex cursor-pointer flex-col items-center justify-start rounded-sm text-center ${
+                          isSelected
+                            ? "bg-[#4a9cff]/25 ring-1 ring-[#bcd8ff]/70"
+                            : ""
+                        }`}
                         style={{
+                          left: `${pos.x}px`,
+                          top: `${pos.y}px`,
                           width: `${desktopIconLayout.itemWidth}px`,
                           height: `${desktopIconLayout.itemHeight}px`,
                         }}
@@ -2402,12 +2595,18 @@ function App() {
                           {item.icon}
                         </div>
 
-                        <span className="max-w-full px-1 font-ui text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] sm:text-sm">
+                        <span
+                          className={`max-w-full px-1 font-ui text-[11px] sm:text-sm ${
+                            isSelected
+                              ? "bg-[#0b61c9] text-white"
+                              : "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+                          }`}
+                        >
                           {item.title}
                         </span>
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
 
                   {selectionRect &&
                   (selectionRect.width > 2 || selectionRect.height > 2) ? (
@@ -2565,6 +2764,16 @@ function App() {
                     const isDisplay = window.id === "display";
                     const isDocuments = window.id === "documents";
                     const isLeaderboard = window.id === "leaderboard";
+                    const isResume = window.id === "resume";
+                    // Regular flow-content windows get the custom Win95 scrollbar.
+                    // Terminal/Notepad/Display/Leaderboard/Resume manage their own
+                    // internal scroll, so they keep native scrolling.
+                    const usesWinScroll =
+                      !isTerminal &&
+                      !isDoc &&
+                      !isDisplay &&
+                      !isLeaderboard &&
+                      !isResume;
 
                     const windowContent = isTerminal ? (
                       <Terminal
@@ -2789,10 +2998,18 @@ function App() {
                                 ? "h-[calc(100%-40px)] overflow-hidden sm:h-[calc(100%-48px)]"
                                 : isDisplay || isLeaderboard
                                   ? "h-[calc(100%-40px)] overflow-auto sm:h-[calc(100%-48px)]"
-                                  : "h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
+                                  : usesWinScroll
+                                    ? "h-[calc(100%-40px)] overflow-hidden sm:h-[calc(100%-48px)]"
+                                    : "h-[calc(100%-40px)] overflow-auto bg-win-content p-3 text-sm text-win-text sm:h-[calc(100%-48px)] sm:p-5 sm:text-base"
                           }
                         >
-                          {windowContent}
+                          {usesWinScroll ? (
+                            <WinScroll className="h-full bg-win-content p-3 text-sm text-win-text sm:p-5 sm:text-base">
+                              {windowContent}
+                            </WinScroll>
+                          ) : (
+                            windowContent
+                          )}
                         </div>
 
                         {!window.maximized ? (

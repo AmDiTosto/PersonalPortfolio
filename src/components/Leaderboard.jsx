@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { getTopScores, submitScore } from "../lib/leaderboard";
 import { validateUsername } from "../lib/profanity";
 import trophyIcon from "../assets/desktopIcons/leaderboard.svg";
+import { WinScrollBar } from "./WinScroll";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 function ScoreList({ scores, loading, loadError, highlightId, fill = false }) {
+  const scrollRef = useRef(null);
   return (
     <div
       className={
@@ -26,11 +28,11 @@ function ScoreList({ scores, loading, loadError, highlightId, fill = false }) {
         </span>
       </div>
 
-      <div
-        className={
-          fill ? "min-h-0 flex-1 overflow-auto" : "max-h-[260px] overflow-auto"
-        }
-      >
+      <div className={fill ? "flex min-h-0 flex-1" : "flex max-h-[260px]"}>
+        <div
+          ref={scrollRef}
+          className="winscroll-hide min-w-0 flex-1 overflow-auto"
+        >
         {loading ? (
           <p className="p-5 text-center font-ui text-sm text-win-muted">
             Loading&hellip;
@@ -73,6 +75,8 @@ function ScoreList({ scores, loading, loadError, highlightId, fill = false }) {
             ))}
           </ol>
         )}
+        </div>
+        <WinScrollBar targetRef={scrollRef} />
       </div>
     </div>
   );
