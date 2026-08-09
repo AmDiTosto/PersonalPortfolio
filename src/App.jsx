@@ -753,20 +753,65 @@ function App() {
     };
   }
 
-  function snapIconToGrid(pos, layout) {
-    const col = Math.max(
-      0,
-      Math.round((pos.x - ICON_MARGIN) / layout.itemWidth),
-    );
-    const row = Math.max(
-      0,
-      Math.round((pos.y - ICON_MARGIN) / layout.itemHeight),
-    );
+  // Snaps each dragged icon to the grid, resolving collisions so no two icons
+  // ever share a cell: an occupied drop cell spirals out to the nearest free one.
+  function placeIconsNoOverlap(prev, draggedIds, draggedPositions) {
+    const layout = getDesktopIconLayout(viewport.width, viewport.height);
     const { maxX, maxY } = iconBounds(layout);
-    return {
-      x: clamp(ICON_MARGIN + col * layout.itemWidth, 2, maxX),
-      y: clamp(ICON_MARGIN + row * layout.itemHeight, getTopSafeArea(), maxY),
-    };
+    const maxCol = Math.max(
+      0,
+      Math.floor((maxX - ICON_MARGIN) / layout.itemWidth),
+    );
+    const maxRow = Math.max(
+      0,
+      Math.floor((maxY - ICON_MARGIN) / layout.itemHeight),
+    );
+
+    const key = (c, r) => `${c},${r}`;
+    const toCell = (pos) => ({
+      col: clamp(Math.round((pos.x - ICON_MARGIN) / layout.itemWidth), 0, maxCol),
+      row: clamp(Math.round((pos.y - ICON_MARGIN) / layout.itemHeight), 0, maxRow),
+    });
+    const toPos = (c, r) => ({
+      x: ICON_MARGIN + c * layout.itemWidth,
+      y: ICON_MARGIN + r * layout.itemHeight,
+    });
+
+    const draggedSet = new Set(draggedIds);
+    const occupied = new Set();
+
+    // Reserve the cell of every icon that isn't being dragged.
+    desktopItems.forEach((item, i) => {
+      if (draggedSet.has(item.id)) return;
+      const { col, row } = toCell(prev[item.id] ?? defaultIconPos(i, layout));
+      occupied.add(key(col, row));
+    });
+
+    const result = {};
+    for (const id of draggedIds) {
+      const desired = toCell(draggedPositions[id]);
+      let placed = null;
+
+      // Spiral outward from the drop cell to the nearest free one.
+      for (let r = 0; r <= maxCol + maxRow + 1 && !placed; r++) {
+        for (let dc = -r; dc <= r && !placed; dc++) {
+          for (let dr = -r; dr <= r && !placed; dr++) {
+            if (Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue;
+            const c = desired.col + dc;
+            const rr = desired.row + dr;
+            if (c < 0 || c > maxCol || rr < 0 || rr > maxRow) continue;
+            if (occupied.has(key(c, rr))) continue;
+            placed = { col: c, row: rr };
+          }
+        }
+      }
+
+      if (!placed) placed = desired; // grid full — last resort
+      occupied.add(key(placed.col, placed.row));
+      result[id] = toPos(placed.col, placed.row);
+    }
+
+    return result;
   }
 
   function iconsInMarquee(box) {
@@ -2224,11 +2269,14 @@ function App() {
     function handleUp() {
       if (didIconDragRef.current) {
         setIconPositions((prev) => {
-          const next = { ...prev };
+          const dragged = {};
           for (const id of iconDrag.ids) {
-            if (next[id]) next[id] = snapIconToGrid(next[id], layout);
+            dragged[id] = prev[id] ?? getIconPos(id);
           }
-          return next;
+          return {
+            ...prev,
+            ...placeIconsNoOverlap(prev, iconDrag.ids, dragged),
+          };
         });
       }
       setIconDrag(null);
