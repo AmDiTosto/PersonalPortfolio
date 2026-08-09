@@ -471,6 +471,27 @@ function App() {
   const gameOverAudioRef = useRef(null);
   const audioRef = useRef(null);
 
+  const [muted, setMuted] = useState(() => {
+    try {
+      return localStorage.getItem("adrianos-muted") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const mutedRef = useRef(muted);
+  const activeClonesRef = useRef(new Set());
+  useEffect(() => {
+    mutedRef.current = muted;
+    try {
+      localStorage.setItem("adrianos-muted", muted ? "1" : "0");
+    } catch {
+      /* ignore storage errors */
+    }
+    // Apply live to any sound currently playing.
+    if (gameOverAudioRef.current) gameOverAudioRef.current.muted = muted;
+    for (const el of activeClonesRef.current) el.muted = muted;
+  }, [muted]);
+
   const transitionTimeoutRef = useRef(null);
   const birdSpawnTimeoutRef = useRef(null);
   const secondaryBirdSpawnTimeoutRef = useRef(null);
@@ -1243,7 +1264,17 @@ function App() {
     try {
       const instance = audio.cloneNode();
       instance.volume = volume;
-      instance.play().catch(() => {});
+      instance.muted = mutedRef.current;
+
+      const cleanup = () => activeClonesRef.current.delete(instance);
+      instance.addEventListener("ended", cleanup);
+      instance.addEventListener("error", cleanup);
+      activeClonesRef.current.add(instance);
+
+      const maybePromise = instance.play();
+      if (maybePromise && typeof maybePromise.catch === "function") {
+        maybePromise.catch(() => cleanup());
+      }
     } catch (error) {
       console.error("Audio could not play:", error);
     }
@@ -1418,6 +1449,7 @@ function App() {
       audio.pause();
       audio.currentTime = 0;
       audio.volume = 0.6;
+      audio.muted = mutedRef.current;
       audio.onended = null;
       const maybePromise = audio.play();
       if (maybePromise && typeof maybePromise.catch === "function") {
@@ -1446,6 +1478,7 @@ function App() {
       audio.pause();
       audio.currentTime = 0;
       audio.volume = 0.6;
+      audio.muted = mutedRef.current;
 
       audio.onended = () => {
         hideGameOverHudAndReset();
@@ -3291,6 +3324,40 @@ function App() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      title={muted ? "Sound: Off (click to unmute)" : "Sound: On (click to mute)"}
+                      aria-label={muted ? "Unmute sound" : "Mute sound"}
+                      aria-pressed={muted}
+                      onClick={() => setMuted((m) => !m)}
+                      className="win-btn flex h-9 w-9 shrink-0 items-center justify-center text-black active:win-pressed"
+                    >
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 22 22"
+                        aria-hidden="true"
+                        style={{ imageRendering: "pixelated" }}
+                      >
+                        <path d="M2 8 h3 l4 -3 v12 l-4 -3 h-3 z" fill="#000" />
+                        {muted ? (
+                          <g stroke="#c00000" strokeWidth="2.2" strokeLinecap="round">
+                            <line x1="13" y1="7" x2="20" y2="15" />
+                            <line x1="20" y1="7" x2="13" y2="15" />
+                          </g>
+                        ) : (
+                          <g
+                            stroke="#000"
+                            strokeWidth="1.8"
+                            fill="none"
+                            strokeLinecap="round"
+                          >
+                            <path d="M13 8 a4.5 4.5 0 0 1 0 6" />
+                            <path d="M15.5 5.5 a8 8 0 0 1 0 11" />
+                          </g>
+                        )}
+                      </svg>
+                    </button>
                     <div className="win-sink flex h-9 items-center bg-win-face px-3 text-black">
                       <span className="font-ui text-sm font-semibold sm:text-base">
                         {formatWindowsTime(currentTime)}
